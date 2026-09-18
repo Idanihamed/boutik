@@ -4,6 +4,7 @@ import { TenantPrisma } from '../tenancy/tenant-prisma';
 import { PromotionsService } from '../promotions/promotions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
+import { tenantStorage } from '../tenancy/tenant-context';
 import { CreateOrderDto } from './dto/create-order.dto';
 
 function buildProduct(overrides: Partial<Record<string, unknown>> = {}) {
@@ -28,11 +29,16 @@ function buildDto(overrides: Partial<CreateOrderDto> = {}): CreateOrderDto {
   } as CreateOrderDto;
 }
 
+// Les emails sont signés du nom de l'entreprise courante : comme à l'exécution, l'appel se fait
+// dans un contexte d'entreprise (posé par TenantInterceptor).
+const inBusiness = <T,>(fn: () => Promise<T>) => tenantStorage.run({ businessId: 'business-1' }, fn);
+
 describe('OrdersService.create', () => {
   let service: OrdersService;
   let prisma: {
     order: { count: jest.Mock; findFirst: jest.Mock; create: jest.Mock };
     boutique: { findUnique: jest.Mock };
+    business: { findUnique: jest.Mock };
     product: { findMany: jest.Mock; updateMany: jest.Mock };
     $transaction: jest.Mock;
   };
@@ -48,6 +54,7 @@ describe('OrdersService.create', () => {
         create: jest.fn(),
       },
       boutique: { findUnique: jest.fn() },
+      business: { findUnique: jest.fn().mockResolvedValue({ name: 'Ma Boutique', currency: 'XOF' }) },
       product: {
         findMany: jest.fn().mockResolvedValue([buildProduct()]),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -155,10 +162,23 @@ describe('OrdersService.create', () => {
   });
 
   it('envoie un email de confirmation quand customerContact ressemble à un email', async () => {
-    await service.create(buildDto({ customerContact: 'client@example.com' }));
+    await inBusiness(() => service.create(buildDto({ customerContact: 'client@example.com' })));
     expect(mailService.send).toHaveBeenCalledWith(
-      expect.objectContaining({ to: 'client@example.com', subject: expect.stringContaining('Confirmation') }),
+      expect.objectContaining({
+        to: 'client@example.com',
+        // L'email est signé du nom de l'entreprise (plusieurs entreprises partagent la plateforme).
+        subject: expect.stringContaining('Ma Boutique : confirmation de votre commande'),
+      }),
     );
+  });
+
+  it('échappe le texte saisi par le client dans l’email (pas d’injection HTML)', async () => {
+    await inBusiness(() =>
+      service.create(buildDto({ customerContact: 'client@example.com', customerName: '<script>alert(1)</script>' })),
+    );
+    const { html } = mailService.send.mock.calls[0][0] as { html: string };
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
   });
 
   it('n’envoie aucun email quand customerContact est un numéro de téléphone', async () => {

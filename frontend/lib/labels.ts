@@ -152,6 +152,74 @@ export const STOCK_STYLES = {
   RUPTURE: 'bg-red-100 text-red-800',
 } as const;
 
+export const ORDER_STATUS_LABELS = {
+  EN_ATTENTE: 'En attente',
+  CONFIRMEE: 'Confirmée',
+  EN_PREPARATION: 'En préparation',
+  EXPEDIEE: 'Expédiée',
+  LIVREE: 'Livrée',
+  ANNULEE: 'Annulée',
+} as const;
+
+export const ORDER_STATUS_STYLES = {
+  EN_ATTENTE: 'bg-amber-100 text-amber-800',
+  CONFIRMEE: 'bg-sky-100 text-sky-800',
+  EN_PREPARATION: 'bg-indigo-100 text-indigo-800',
+  EXPEDIEE: 'bg-violet-100 text-violet-800',
+  LIVREE: 'bg-emerald-100 text-emerald-800',
+  ANNULEE: 'bg-slate-200 text-slate-700',
+} as const;
+
+/** Étape suivante « naturelle » d'une commande (absente pour une commande livrée ou annulée). */
+export const NEXT_ORDER_STATUS = {
+  EN_ATTENTE: 'CONFIRMEE',
+  CONFIRMEE: 'EN_PREPARATION',
+  EN_PREPARATION: 'EXPEDIEE',
+  EXPEDIEE: 'LIVREE',
+} as const;
+
+export const NEXT_ORDER_LABELS = {
+  EN_ATTENTE: 'Confirmer la commande',
+  CONFIRMEE: 'Passer en préparation',
+  EN_PREPARATION: 'Marquer comme expédiée',
+  EXPEDIEE: 'Marquer comme livrée',
+} as const;
+
+export const MESSAGE_STATUS_LABELS = {
+  NOUVEAU: 'Nouveau',
+  LU: 'Lu',
+  TRAITE: 'Traité',
+} as const;
+
+export const MESSAGE_STATUS_STYLES = {
+  NOUVEAU: 'bg-amber-100 text-amber-800',
+  LU: 'bg-slate-200 text-slate-700',
+  TRAITE: 'bg-emerald-100 text-emerald-800',
+} as const;
+
+/** Liens pour joindre un client : email (mailto), sinon téléphone (appel + WhatsApp). */
+export function contactLinks(contact: string): { href: string; label: string }[] {
+  const value = contact.trim();
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return [{ href: `mailto:${value}`, label: 'Écrire un email' }];
+  const digits = value.replace(/\D/g, '');
+  if (digits.length < 8) return [];
+  const links = [{ href: `tel:${value.replace(/[^\d+]/g, '')}`, label: 'Appeler' }];
+  // WhatsApp exige l'indicatif du pays : proposé seulement quand le numéro est écrit en format
+  // international (« +225… » ou « 00225… »), jamais deviné pour un numéro local.
+  if (value.startsWith('+') || value.startsWith('00')) {
+    links.push({ href: `https://wa.me/${value.startsWith('00') ? digits.slice(2) : digits}`, label: 'WhatsApp' });
+  }
+  return links;
+}
+
+/** Type de fichier joint déduit de son adresse (l'API ne le stocke pas séparément). */
+export function attachmentKind(url: string): 'image' | 'video' | 'other' {
+  const path = url.split('?')[0].toLowerCase();
+  if (/\.(jpe?g|png|webp|gif)$/.test(path)) return 'image';
+  if (/\.(mp4|webm|mov)$/.test(path)) return 'video';
+  return 'other';
+}
+
 /** Identifiant d'URL proposé à partir du nom (miroir des règles de l'API : a-z, 0-9, tirets). */
 export function slugify(text: string): string {
   return text

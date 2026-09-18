@@ -3,16 +3,23 @@ import type {
   Brand,
   BusinessDetail,
   BusinessStatus,
+  AdminMessage,
+  AdminMessageRow,
+  AdminOrder,
   Category,
+  DashboardStats,
   FlaggedBusiness,
+  MessageStatus,
   ModerationAction,
   MyBusiness,
+  OrderStatus,
   Paginated,
   PlatformBusinessRow,
   Product,
   ProductInput,
   ProductStatus,
   ReportStatus,
+  Settings,
 } from './types';
 
 // Chemin relatif : le site relaie /api vers l'API (voir next.config.mjs), pour que les cookies
@@ -199,6 +206,39 @@ export const setProductPublication = (id: string, action: 'publish' | 'unpublish
 export const duplicateProduct = (id: string) => request<Product>(`/admin/products/${id}/duplicate`, send('POST'));
 export const adjustProductStock = (id: string, delta: number) =>
   request<Product>(`/admin/products/${id}/stock`, send('PATCH', { delta }));
+
+// ---------- Espace du responsable : commandes, messages, paramètres ----------
+
+export function listOrders(params: { status?: OrderStatus; page?: number }) {
+  const query = new URLSearchParams();
+  if (params.status) query.set('status', params.status);
+  query.set('page', String(params.page ?? 1));
+  query.set('limit', '20');
+  return request<Paginated<AdminOrder>>(`/admin/orders?${query}`);
+}
+export const getOrder = (id: string) => request<AdminOrder>(`/admin/orders/${id}`);
+export const setOrderStatus = (id: string, status: OrderStatus) =>
+  request<AdminOrder>(`/admin/orders/${id}/status`, send('PATCH', { status }));
+
+export function listMessages(params: { status?: MessageStatus; page?: number }) {
+  const query = new URLSearchParams();
+  if (params.status) query.set('status', params.status);
+  query.set('page', String(params.page ?? 1));
+  query.set('limit', '20');
+  return request<Paginated<AdminMessageRow>>(`/admin/messages?${query}`);
+}
+export const getMessage = (id: string) => request<AdminMessage>(`/admin/messages/${id}`);
+export const setMessageStatus = (id: string, status: MessageStatus) =>
+  request<AdminMessage>(`/admin/messages/${id}/status`, send('PATCH', { status }));
+export const replyToMessage = (id: string, reply: string) =>
+  request<AdminMessage>(`/admin/messages/${id}/reply`, send('PATCH', { reply }));
+export const deleteMessage = (id: string) => request(`/admin/messages/${id}`, send('DELETE'));
+
+export const getSettings = () => request<Settings>('/admin/settings');
+export const updateSettings = (input: Partial<Record<keyof Settings, string>>) =>
+  request<Settings>('/admin/settings', send('PATCH', input));
+
+export const getDashboardStats = () => request<DashboardStats>('/admin/dashboard/stats');
 
 export function registerCustomer(input: { name: string; email: string; password: string }) {
   return request<{ id: string; name: string; email: string }>('/auth/register', json(input));

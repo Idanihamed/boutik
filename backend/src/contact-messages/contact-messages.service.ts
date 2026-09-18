@@ -8,6 +8,8 @@ import { QueryContactMessagesDto } from './dto/query-contact-messages.dto';
 import { ReplyContactMessageDto } from './dto/reply-contact-message.dto';
 import { generateReference } from '../common/utils/reference.util';
 import { isEmailLike } from '../common/utils/is-email.util';
+import { escapeHtml } from '../common/utils/escape-html.util';
+import { currentBusinessId } from '../tenancy/tenant-context';
 
 // Anti-spam simple par adresse IP (§23 : "à valider selon le niveau de trafic attendu").
 // En l'absence d'une décision client, une limite prudente est appliquée par défaut.
@@ -75,19 +77,27 @@ export class ContactMessagesService {
     await this.notificationsService.create(
       'CONTACT_MESSAGE',
       `Nouveau message de ${dto.name} : ${dto.subject}`,
-      '/admin/messages',
+      '/espace/messages',
     );
 
     // dto.contact accepte un téléphone OU un email (même principe que OrdersService.create).
     if (isEmailLike(dto.contact)) {
+      const business = await this.businessName();
       await this.mailService.send({
         to: dto.contact,
-        subject: `Votre message a bien été reçu (réf. ${reference})`,
-        html: `<p>Merci ${dto.name}, votre message concernant « ${dto.subject} » a bien été reçu. Référence : <strong>${reference}</strong>.</p><p>Nous vous répondrons dans les meilleurs délais.</p>`,
+        subject: `${business} : votre message a bien été reçu (réf. ${reference})`,
+        html: `<p>Merci ${escapeHtml(dto.name)}, votre message concernant « ${escapeHtml(dto.subject)} » a bien été reçu par <strong>${escapeHtml(business)}</strong>. Référence : <strong>${reference}</strong>.</p><p>Vous recevrez la réponse par email et pourrez aussi la consulter avec cette référence.</p>`,
       });
     }
 
     return { success: true, reference };
+  }
+
+  /** Nom de l'entreprise courante, pour signer les emails envoyés à ses clients. */
+  private async businessName(): Promise<string> {
+    const id = currentBusinessId();
+    const business = id ? await this.prisma.business.findUnique({ where: { id }, select: { name: true } }) : null;
+    return business?.name ?? 'la boutique';
   }
 
   /**
@@ -178,7 +188,7 @@ export class ContactMessagesService {
     }
     const existing = await this.prisma.contactMessage.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Message introuvable.');
-    return this.prisma.contactMessage.update({
+    const updated = await this.prisma.contactMessage.update({
       where: { id },
       data: {
         replyMessage: dto.reply ?? null,
@@ -188,6 +198,20 @@ export class ContactMessagesService {
         status: 'TRAITE',
       },
     });
+
+    // Sans cet email, un client qui n'a pas gardé sa référence ne saurait jamais qu'on lui a
+    // répondu. No-op tant que l'envoi d'email n'est pas configuré (voir MailService).
+    if (dto.reply?.trim() && isEmailLike(existing.contact)) {
+      const business = await this.businessName();
+      const body = escapeHtml(dto.reply.trim()).replace(/\n/g, '<br>');
+      await this.mailService.send({
+        to: existing.contact,
+        subject: `${business} a répondu à votre message (réf. ${existing.reference})`,
+        html: `<p>Bonjour ${escapeHtml(existing.name)},</p><p>${body}</p><p style="color:#64748b">Réponse de ${escapeHtml(business)} à votre message « ${escapeHtml(existing.subject)} » — référence ${existing.reference}.</p>`,
+      });
+    }
+
+    return updated;
   }
 
   async remove(id: string) {

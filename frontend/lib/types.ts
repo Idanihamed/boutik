@@ -213,3 +213,71 @@ export interface OrderTracking {
   createdAt: string;
   items: { productName: string; unitPrice: number; quantity: number; subtotal: number }[];
 }
+
+export type MessageStatus = 'NOUVEAU' | 'LU' | 'TRAITE';
+
+export interface MessageTracking {
+  reference: string;
+  subject: string;
+  status: MessageStatus;
+  createdAt: string;
+  reply: string | null;
+  replyVoiceUrl: string | null;
+  repliedAt: string | null;
+}
+
+// ---------- Espace du responsable : commandes, messages, paramètres ----------
+
+export interface AdminOrder {
+  id: string;
+  reference: string;
+  customerName: string;
+  customerContact: string;
+  customerAddress: string | null;
+  notes: string | null;
+  status: OrderStatus;
+  totalAmount: number;
+  items: { productName: string; unitPrice: number; quantity: number; subtotal: number }[];
+  boutique: { name: string; address: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminMessageRow {
+  id: string;
+  name: string;
+  contact: string;
+  subject: string;
+  message: string;
+  voiceUrl: string | null;
+  attachmentUrl: string | null;
+  status: MessageStatus;
+  createdAt: string;
+}
+
+export interface AdminMessage extends AdminMessageRow {
+  reference: string;
+  replyMessage: string | null;
+  replyVoiceUrl: string | null;
+  replyAttachmentUrl: string | null;
+  repliedAt: string | null;
+}
+
+export interface Settings {
+  whatsappNumber: string | null;
+  facebookUrl: string | null;
+  instagramUrl: string | null;
+  tiktokUrl: string | null;
+  youtubeUrl: string | null;
+  linkedinUrl: string | null;
+  xUrl: string | null;
+  heroImage1: string | null;
+  heroImage2: string | null;
+}
+
+export interface DashboardStats {
+  products: { total: number; published: number; draft: number };
+  stock: { lowStock: number; outOfStock: number };
+  messages: { untreated: number };
+  orders: { pending: number };
+}

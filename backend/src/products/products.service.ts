@@ -37,13 +37,13 @@ export class ProductsService {
       await this.notificationsService.create(
         'OUT_OF_STOCK',
         `Le produit « ${productName} » est en rupture de stock.`,
-        `/admin/produits/${productId}`,
+        `/espace/produits/${productId}`,
       );
     } else if (newStatus === 'STOCK_FAIBLE') {
       await this.notificationsService.create(
         'LOW_STOCK',
         `Le produit « ${productName} » passe en stock faible.`,
-        `/admin/produits/${productId}`,
+        `/espace/produits/${productId}`,
       );
     }
   }

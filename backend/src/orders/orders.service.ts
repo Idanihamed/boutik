@@ -7,6 +7,9 @@ import { MailService } from '../mail/mail.service';
 import { resolveEffectivePrice } from '../common/utils/pricing.util';
 import { generateReference } from '../common/utils/reference.util';
 import { isEmailLike } from '../common/utils/is-email.util';
+import { escapeHtml } from '../common/utils/escape-html.util';
+import { formatMoney } from '../common/utils/money.util';
+import { currentBusinessId } from '../tenancy/tenant-context';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QueryOrdersDto } from './dto/query-orders.dto';
 
@@ -29,6 +32,15 @@ export class OrdersService {
     private readonly notificationsService: NotificationsService,
     private readonly mailService: MailService,
   ) {}
+
+  /** Nom et devise de l'entreprise courante (pour les messages envoyés à ses clients). */
+  private async currentBusiness(): Promise<{ name: string; currency: string }> {
+    const id = currentBusinessId();
+    const business = id
+      ? await this.prisma.business.findUnique({ where: { id }, select: { name: true, currency: true } })
+      : null;
+    return business ?? { name: 'la boutique', currency: 'XOF' };
+  }
 
   // ---------- Public ----------
 
@@ -140,21 +152,22 @@ export class OrdersService {
       });
     });
 
+    const business = await this.currentBusiness();
     await this.notificationsService.create(
       'NEW_ORDER',
-      `Nouvelle commande de ${dto.customerName} (${totalAmount.toLocaleString('fr-FR')} FCFA)`,
-      '/admin/commandes',
+      `Nouvelle commande de ${dto.customerName} (${formatMoney(totalAmount, business.currency)})`,
+      '/espace/commandes',
     );
 
     // customerContact accepte un téléphone OU un email (voir CreateOrderDto) : pas d'envoi si
     // ce n'est manifestement pas une adresse email. No-op tant qu'aucun SMTP n'est configuré
     // (voir MailService).
     if (isEmailLike(dto.customerContact)) {
-      const itemsHtml = lines.map((l) => `<li>${l.quantity} × ${l.productName}</li>`).join('');
+      const itemsHtml = lines.map((l) => `<li>${l.quantity} × ${escapeHtml(l.productName)}</li>`).join('');
       await this.mailService.send({
         to: dto.customerContact,
-        subject: `Confirmation de votre commande ${reference}`,
-        html: `<p>Merci ${dto.customerName}, votre commande <strong>${reference}</strong> a bien été reçue.</p><ul>${itemsHtml}</ul><p>Total : ${totalAmount.toLocaleString('fr-FR')} FCFA</p>`,
+        subject: `${business.name} : confirmation de votre commande ${reference}`,
+        html: `<p>Merci ${escapeHtml(dto.customerName)}, votre commande <strong>${reference}</strong> a bien été reçue par <strong>${escapeHtml(business.name)}</strong>.</p><ul>${itemsHtml}</ul><p>Total : ${formatMoney(totalAmount, business.currency)}</p><p>L'entreprise vous contactera pour la confirmer. Vous pouvez suivre votre commande avec la référence ci-dessus.</p>`,
       });
     }
 
