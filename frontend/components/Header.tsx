@@ -1,13 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { homeFor, useSession } from '../lib/session';
 import { Button } from './ui';
+
+// Pages de la plateforme elle-même. Toute autre adresse est la vitrine d'une entreprise, qui a son
+// propre en-tête (StoreHeader) : celui de Boutik s'y effacerait pour laisser la place à l'entreprise.
+const PLATFORM_PATHS = ['/connexion', '/inscription', '/creer-un-compte', '/espace', '/plateforme'];
 
 export function Header() {
   const { user, loading, logout } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
+
+  const isPlatformPage = pathname === '/' || PLATFORM_PATHS.some((p) => pathname.startsWith(p));
+  if (!isPlatformPage) return null;
 
   async function handleLogout() {
     await logout();

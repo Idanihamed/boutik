@@ -4,9 +4,14 @@ Plateforme multi-entreprise : chaque responsable crée son entreprise (nom, logo
 gère sa propre vitrine ; l'administrateur de la plateforme valide, suspend ou bannit les
 entreprises. Issue du socle du projet Amza Futur Telecom (qui reste indépendant).
 
-**État : étape 1 (backend) et début de l'étape 2 (site web : inscription, connexion, console de
-modération de la plateforme).** L'espace complet du responsable (produits, commandes, messages),
-la vitrine publique et l'application mobile viennent ensuite.
+**État : backend, site web (inscription, connexion, console de modération, catalogue du
+responsable) et vitrine publique (accueil, produits, panier, commande, suivi, contact,
+signalement).** À venir : gestion des commandes et messages côté responsable, promotions,
+paramètres et personnel, puis l'application mobile.
+
+Vitrine : `/<adresse-de-l-entreprise>` (ex. `/demo`). Pour un déploiement derrière des relais
+(Vercel → Render), régler `TRUST_PROXY` côté API selon le nombre de relais, sinon l'anti-spam
+verrait la même adresse pour tous les visiteurs.
 
 ## Principes
 

@@ -117,6 +117,8 @@ export interface Product {
   price: number;
   promoPrice: number | null;
   effectivePrice: number;
+  discountPercentage?: number;
+  appliedPromotion?: { id: string; name: string } | null;
   onSale: boolean;
   stock: number;
   lowStockThreshold: number;
@@ -160,4 +162,54 @@ export interface MyBusiness {
   currency: string;
   status: BusinessStatus;
   statusReason: string | null;
+}
+
+// ---------- Vitrine publique ----------
+
+export interface Storefront {
+  name: string;
+  slug: string;
+  logo: string | null;
+  description: string | null;
+  country: string;
+  currency: string;
+  settings: {
+    whatsappNumber: string | null;
+    facebookUrl: string | null;
+    instagramUrl: string | null;
+    tiktokUrl: string | null;
+    youtubeUrl: string | null;
+    linkedinUrl: string | null;
+    xUrl: string | null;
+    heroImage1: string | null;
+    heroImage2: string | null;
+  } | null;
+}
+
+export interface PublicCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image: string | null;
+}
+
+export interface ActivePromotion {
+  id: string;
+  name: string;
+  bannerTitle: string | null;
+  bannerSubtitle: string | null;
+  bannerImage: string | null;
+  productCount: number;
+}
+
+export type OrderStatus = 'EN_ATTENTE' | 'CONFIRMEE' | 'EN_PREPARATION' | 'EXPEDIEE' | 'LIVREE' | 'ANNULEE';
+
+export interface OrderTracking {
+  reference: string;
+  status: OrderStatus;
+  totalAmount: number;
+  customerAddress: string | null;
+  createdAt: string;
+  items: { productName: string; unitPrice: number; quantity: number; subtotal: number }[];
 }

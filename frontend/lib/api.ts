@@ -199,3 +199,12 @@ export const setProductPublication = (id: string, action: 'publish' | 'unpublish
 export const duplicateProduct = (id: string) => request<Product>(`/admin/products/${id}/duplicate`, send('POST'));
 export const adjustProductStock = (id: string, delta: number) =>
   request<Product>(`/admin/products/${id}/stock`, send('PATCH', { delta }));
+
+export function registerCustomer(input: { name: string; email: string; password: string }) {
+  return request<{ id: string; name: string; email: string }>('/auth/register', json(input));
+}
+
+/** Adresse de retour après connexion : uniquement un chemin interne (jamais un lien vers un autre site). */
+export function safeReturnPath(value: string | null | undefined): string | null {
+  return value && value.startsWith('/') && !value.startsWith('//') && !value.includes('\\') ? value : null;
+}

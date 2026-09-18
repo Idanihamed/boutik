@@ -15,7 +15,10 @@ export class OrdersController {
 
   // ---------------- Site public (panier / checkout) ----------------
 
+  // Plafond GLOBAL par IP (toutes entreprises confondues), en plus de l'anti-spam par entreprise.
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('orders')
   create(@Body() dto: CreateOrderDto, @Req() req: Request) {
     return this.ordersService.create(dto, req.ip);

@@ -166,7 +166,11 @@ export class ContactMessagesController {
 
   // ---------------- Site public (§23) ----------------
 
+  // Plafond GLOBAL par IP (toutes entreprises confondues) en plus de l'anti-spam par entreprise du
+  // service : sans lui, un robot pourrait envoyer 5 messages / 10 min à CHAQUE entreprise.
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('contact')
   create(@Body() dto: CreateContactMessageDto, @Req() req: Request) {
     return this.contactMessagesService.create(dto, req.ip);

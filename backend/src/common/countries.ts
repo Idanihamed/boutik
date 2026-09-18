@@ -51,4 +51,12 @@ export const RESERVED_SLUGS = new Set([
   'help',
   'contact',
   'about',
+  // Pages du site web de la plateforme (une vitrine ne doit pas les masquer).
+  'espace',
+  'creer-un-compte',
+  'compte',
+  'sitemap',
+  'robots',
+  'favicon',
+  'manifest',
 ]);
