@@ -1,0 +1,59 @@
+# Déploiement de l'API Boutik sur Render (« Blueprint »). Les variables marquées `sync: false`
+# sont demandées dans le tableau de bord Render au moment de la création : elles ne sont jamais
+# écrites dans le dépôt.
+#
+# La base de données n'est PAS créée ici : le plan gratuit de Render n'autorise qu'une base par
+# compte. On utilise une base PostgreSQL externe (ex. Neon, plan gratuit sans expiration) dont
+# l'adresse est fournie dans DATABASE_URL.
+services:
+  - type: web
+    name: boutik-api
+    runtime: node
+    region: frankfurt # plus proche de l'Afrique de l'Ouest que Oregon ; à garder identique à la base
+    plan: free # s'endort après ~15 min d'inactivité : la première requête suivante prend ~1 min
+    rootDir: backend
+    # Migrations et données de base (rôles, permissions, compte plateforme) au BUILD, pas au
+    # démarrage : les redémarrages après mise en veille restent rapides.
+    buildCommand: npm install --include=dev && npx prisma generate && npx prisma migrate deploy && npm run prisma:seed && npm run build
+    startCommand: node dist/main
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
+      - key: COOKIE_SECURE
+        value: "true"
+      # Nombre de relais devant l'API (Vercel puis Render) : à vérifier après le premier
+      # déploiement (voir README) — sinon l'anti-spam verrait la même adresse pour tous.
+      - key: TRUST_PROXY
+        value: "2"
+      - key: CORS_ORIGIN
+        sync: false
+      - key: SEED_PLATFORM_ADMIN_NAME
+        value: Administrateur Boutik
+      - key: SEED_PLATFORM_ADMIN_EMAIL
+        sync: false
+      - key: SEED_PLATFORM_ADMIN_PASSWORD
+        sync: false
+      - key: PLATFORM_ALERT_EMAIL
+        sync: false
+      - key: REPORT_ALERT_THRESHOLD
+        value: "3"
+      # Le disque de Render est effacé à chaque déploiement : les photos doivent être stockées
+      # sur Cloudinary (CLOUDINARY_URL = cloudinary://CLE:SECRET@NOM — valeur exacte, sinon
+      # l'API ne démarre pas).
+      - key: STORAGE_DRIVER
+        value: cloudinary
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SMTP_FROM
+        value: "Boutik <onboarding@resend.dev>"

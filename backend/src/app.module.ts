@@ -22,6 +22,7 @@ import { ActivityLogModule } from './activity-log/activity-log.module';
 import { SettingsModule } from './settings/settings.module';
 import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 import { TenancyModule } from './tenancy/tenancy.module';
+import { HealthModule } from './health/health.module';
 import { BusinessesModule } from './businesses/businesses.module';
 import { PlatformModule } from './platform/platform.module';
 
@@ -34,6 +35,7 @@ import { PlatformModule } from './platform/platform.module';
     }),
     PrismaModule,
     TenancyModule,
+    HealthModule,
     AuthModule,
     BusinessesModule,
     PlatformModule,

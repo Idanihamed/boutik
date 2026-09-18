@@ -51,6 +51,30 @@ npm run dev                        # http://localhost:3100
 Le navigateur n'appelle jamais l'API directement : il passe par `/api` sur le site, relayé par Next
 (`next.config.mjs`), ce qui garde les cookies de session « premier parti ».
 
+## Déployer une version de test
+
+Trois services, tous avec un plan gratuit :
+
+1. **Base PostgreSQL** — Neon (neon.tech), région Europe (Frankfurt). Copier l'adresse de connexion
+   **directe** (sans `-pooler`) : c'est `DATABASE_URL`. (Render n'autorise qu'une base gratuite par
+   compte, d'où une base externe.)
+2. **API** — Render : *New → Blueprint*, choisir ce dépôt (`render.yaml`). Renseigner les variables
+   demandées : `DATABASE_URL`, `SEED_PLATFORM_ADMIN_EMAIL`, `SEED_PLATFORM_ADMIN_PASSWORD` (10
+   caractères min., ce compte peut valider et bannir toute entreprise), `CLOUDINARY_URL`
+   (`cloudinary://CLE:SECRET@NOM` — valeur exacte), `CORS_ORIGIN` (adresse du site Vercel).
+   Vérifier ensuite `https://<api>.onrender.com/api/health/db`.
+3. **Site** — Vercel : projet dont le dossier racine est `frontend`, variable `BACKEND_ORIGIN` =
+   adresse de l'API Render (sans `/api`).
+
+Points à vérifier après le premier déploiement :
+
+- `TRUST_PROXY` (2 par défaut = Vercel puis Render) : depuis deux réseaux différents, envoyer
+  quelques messages de contact et contrôler que la limite anti-spam s'applique par visiteur et non
+  pour tout le monde.
+- Plan gratuit Render : l'API s'endort après ~15 min ; la première visite met ~1 min à répondre.
+  Un ping régulier de `/api/health/db` (ex. UptimeRobot, toutes les 5 min) l'évite.
+- Les emails sortent de `onboarding@resend.dev` tant qu'aucun domaine n'est vérifié chez Resend.
+
 ## Tests
 
 ```bash

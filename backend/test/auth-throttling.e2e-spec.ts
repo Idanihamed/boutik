@@ -28,6 +28,11 @@ describe('Limitation de débit des routes d’authentification (e2e)', () => {
     await app.close();
   });
 
+  it('expose des routes de santé publiques (contrôle de l’hébergeur, ping de maintien en éveil)', async () => {
+    await request(server()).get('/api/health').expect(200, { status: 'ok' });
+    await request(server()).get('/api/health/db').expect(200, { status: 'ok', database: 'ok' });
+  });
+
   it('ne limite pas GET /auth/me (appelée à chaque page)', async () => {
     const login = await request(server()).post('/api/auth/login').send(PLATFORM_ADMIN).expect(200);
     const cookie = (login.headers['set-cookie'] as unknown as string[]).map((c) => c.split(';')[0]).join('; ');
