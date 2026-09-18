@@ -1,11 +1,17 @@
 import type {
   AuthUser,
+  Brand,
   BusinessDetail,
   BusinessStatus,
+  Category,
   FlaggedBusiness,
   ModerationAction,
+  MyBusiness,
   Paginated,
   PlatformBusinessRow,
+  Product,
+  ProductInput,
+  ProductStatus,
   ReportStatus,
 } from './types';
 
@@ -53,13 +59,15 @@ async function tryRefresh(): Promise<boolean> {
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const method = (options.method ?? 'GET').toUpperCase();
   const isMutating = !['GET', 'HEAD', 'OPTIONS'].includes(method);
+  // Un FormData (téléversement) définit lui-même son Content-Type avec la bonne frontière.
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
 
   const doFetch = () =>
     fetch(`${API_URL}${path}`, {
       ...options,
       credentials: 'include',
       headers: {
-        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
         ...(isMutating ? { [CSRF_HEADER]: readCookie(CSRF_COOKIE) ?? '' } : {}),
         ...(options.headers ?? {}),
       },
@@ -138,3 +146,56 @@ export function listFlaggedBusinesses() {
 export function setReportStatus(reportId: string, status: Exclude<ReportStatus, 'OPEN'>) {
   return request(`/platform/reports/${reportId}`, { method: 'PATCH', body: JSON.stringify({ status }) });
 }
+
+// ---------- Espace du responsable : catalogue ----------
+
+const send = (method: 'PATCH' | 'DELETE' | 'POST', body?: unknown): RequestInit => ({
+  method,
+  ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+});
+
+export async function uploadImage(file: File): Promise<string> {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await request<{ url: string }>('/admin/media/upload', { method: 'POST', body: form });
+  return res.url;
+}
+
+export const getMyBusiness = () => request<MyBusiness>('/admin/business');
+export const updateMyBusiness = (
+  input: Partial<Pick<MyBusiness, 'name' | 'logo' | 'description' | 'country' | 'currency'>>,
+) => request<MyBusiness>('/admin/business', send('PATCH', input));
+
+export type CategoryInput = { name: string; description?: string; image?: string; isActive: boolean; sortOrder: number };
+export const listCategories = () => request<Category[]>('/admin/categories');
+export const createCategory = (input: CategoryInput) => request<Category>('/admin/categories', send('POST', input));
+export const updateCategory = (id: string, input: Partial<CategoryInput>) =>
+  request<Category>(`/admin/categories/${id}`, send('PATCH', input));
+export const deleteCategory = (id: string) => request(`/admin/categories/${id}`, send('DELETE'));
+
+export type BrandInput = { name: string; logo?: string; isActive: boolean };
+export const listBrands = () => request<Brand[]>('/admin/brands');
+export const createBrand = (input: BrandInput) => request<Brand>('/admin/brands', send('POST', input));
+export const updateBrand = (id: string, input: Partial<BrandInput>) =>
+  request<Brand>(`/admin/brands/${id}`, send('PATCH', input));
+export const deleteBrand = (id: string) => request(`/admin/brands/${id}`, send('DELETE'));
+
+export function listProducts(params: { search?: string; status?: ProductStatus; category?: string; page?: number }) {
+  const query = new URLSearchParams();
+  if (params.search) query.set('search', params.search);
+  if (params.status) query.set('status', params.status);
+  if (params.category) query.set('category', params.category);
+  query.set('page', String(params.page ?? 1));
+  query.set('limit', '20');
+  return request<Paginated<Product>>(`/admin/products?${query}`);
+}
+export const getProduct = (id: string) => request<Product>(`/admin/products/${id}`);
+export const createProduct = (input: ProductInput) => request<Product>('/admin/products', send('POST', input));
+export const updateProduct = (id: string, input: Partial<ProductInput>) =>
+  request<Product>(`/admin/products/${id}`, send('PATCH', input));
+export const deleteProduct = (id: string) => request(`/admin/products/${id}`, send('DELETE'));
+export const setProductPublication = (id: string, action: 'publish' | 'unpublish') =>
+  request<Product>(`/admin/products/${id}/${action}`, send('PATCH'));
+export const duplicateProduct = (id: string) => request<Product>(`/admin/products/${id}/duplicate`, send('POST'));
+export const adjustProductStock = (id: string, delta: number) =>
+  request<Product>(`/admin/products/${id}/stock`, send('PATCH', { delta }));

@@ -9,7 +9,7 @@ export interface AuthUser {
   email: string;
   role: string;
   businessId: string | null;
-  business: { id: string; name: string; slug: string; status: BusinessStatus } | null;
+  business: { id: string; name: string; slug: string; status: BusinessStatus; country: string; currency: string } | null;
   permissions: string[];
 }
 
@@ -70,4 +70,94 @@ export interface BusinessDetail {
   users: { id: string; name: string; email: string; isActive: boolean; role: { name: string } }[];
   moderationLog: ModerationEvent[];
   reports: BusinessReportItem[];
+}
+
+export type StockStatus = 'DISPONIBLE' | 'STOCK_FAIBLE' | 'RUPTURE';
+export type ProductStatus = 'DRAFT' | 'PUBLISHED';
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image: string | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface Brand {
+  id: string;
+  name: string;
+  slug: string;
+  logo: string | null;
+  isActive: boolean;
+}
+
+export interface ProductImage {
+  id?: string;
+  url: string;
+  alt?: string | null;
+  isMain: boolean;
+}
+
+export interface ProductAttribute {
+  key: string;
+  value: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  sku: string;
+  category: { id: string; name: string; slug: string } | null;
+  brand: { id: string; name: string; slug: string } | null;
+  shortDescription: string | null;
+  description: string | null;
+  price: number;
+  promoPrice: number | null;
+  effectivePrice: number;
+  onSale: boolean;
+  stock: number;
+  lowStockThreshold: number;
+  stockStatus: StockStatus;
+  warranty: string | null;
+  isFeatured: boolean;
+  status: ProductStatus;
+  images: ProductImage[];
+  attributes: ProductAttribute[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Corps envoyé à l'API pour créer ou modifier un produit. */
+export interface ProductInput {
+  name: string;
+  sku: string;
+  categoryId: string;
+  // null / '' à la modification : retire la marque, le prix promo ou le texte.
+  brandId?: string | null;
+  shortDescription?: string;
+  description?: string;
+  price: number;
+  promoPrice?: number | null;
+  stock: number;
+  lowStockThreshold: number;
+  warranty?: string;
+  isFeatured: boolean;
+  status: ProductStatus;
+  images: { url: string; alt?: string; isMain: boolean; sortOrder: number }[];
+  attributes: { key: string; value: string; sortOrder: number }[];
+}
+
+export interface MyBusiness {
+  id: string;
+  name: string;
+  slug: string;
+  logo: string | null;
+  description: string | null;
+  country: string;
+  currency: string;
+  status: BusinessStatus;
+  statusReason: string | null;
 }

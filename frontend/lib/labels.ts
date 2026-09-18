@@ -104,6 +104,54 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+/** Devise par défaut selon le pays (miroir de l'API, voir backend/src/common/countries.ts). */
+export const DEFAULT_CURRENCY_BY_COUNTRY: Record<string, string> = {
+  CI: 'XOF',
+  SN: 'XOF',
+  ML: 'XOF',
+  BF: 'XOF',
+  BJ: 'XOF',
+  TG: 'XOF',
+  NE: 'XOF',
+  GW: 'XOF',
+  CM: 'XAF',
+  GA: 'XAF',
+  CG: 'XAF',
+  TD: 'XAF',
+  CF: 'XAF',
+  GQ: 'XAF',
+  GN: 'GNF',
+  CD: 'CDF',
+  MG: 'MGA',
+  MA: 'MAD',
+  DZ: 'DZD',
+  TN: 'TND',
+  FR: 'EUR',
+  BE: 'EUR',
+};
+
+/** Libellé usuel d'une devise : « FCFA » pour le franc CFA (XOF/XAF), le code ISO sinon. */
+export function currencyLabel(currency: string): string {
+  return currency === 'XOF' || currency === 'XAF' ? 'FCFA' : currency;
+}
+
+/** Montant entier suivi de la devise. */
+export function formatPrice(amount: number, currency: string): string {
+  return `${amount.toLocaleString('fr-FR')} ${currencyLabel(currency)}`;
+}
+
+export const STOCK_LABELS = {
+  DISPONIBLE: 'En stock',
+  STOCK_FAIBLE: 'Stock faible',
+  RUPTURE: 'Rupture',
+} as const;
+
+export const STOCK_STYLES = {
+  DISPONIBLE: 'bg-emerald-100 text-emerald-800',
+  STOCK_FAIBLE: 'bg-amber-100 text-amber-800',
+  RUPTURE: 'bg-red-100 text-red-800',
+} as const;
+
 /** Identifiant d'URL proposé à partir du nom (miroir des règles de l'API : a-z, 0-9, tirets). */
 export function slugify(text: string): string {
   return text

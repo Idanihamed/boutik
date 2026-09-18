@@ -49,6 +49,12 @@ export function useSession(): SessionValue {
   return value;
 }
 
+/** Vrai si le compte connecté détient la permission (« ressource:action »). L'API la revérifie toujours. */
+export function useCan(): (permission: string) => boolean {
+  const { user } = useSession();
+  return (permission) => Boolean(user?.permissions.includes(permission));
+}
+
 /** Où envoyer un compte après connexion, selon son rôle. */
 export function homeFor(user: AuthUser): string {
   if (user.role === 'PLATFORM_ADMIN') return '/plateforme';

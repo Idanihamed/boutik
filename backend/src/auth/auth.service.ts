@@ -241,7 +241,14 @@ export class AuthService {
       role: user.role.name,
       businessId: user.businessId,
       business: user.business
-        ? { id: user.business.id, name: user.business.name, slug: user.business.slug, status: user.business.status }
+        ? {
+            id: user.business.id,
+            name: user.business.name,
+            slug: user.business.slug,
+            status: user.business.status,
+            country: user.business.country,
+            currency: user.business.currency,
+          }
         : null,
       permissions: user.role.permissions.map((rp) => `${rp.permission.resource}:${rp.permission.action}`),
     };

@@ -6,6 +6,7 @@ import { ApiError, listFlaggedBusinesses, listPlatformBusinesses } from '../../l
 import { countryName, formatDate, STATUS_LABELS } from '../../lib/labels';
 import type { BusinessStatus, FlaggedBusiness, ModerationAction, Paginated, PlatformBusinessRow } from '../../lib/types';
 import { ModerationDialog } from '../../components/ModerationDialog';
+import { Pagination } from '../../components/Pagination';
 import { Alert, Button, Card, Input, Select, Spinner, StatusBadge } from '../../components/ui';
 
 type Tab = 'pending' | 'flagged' | 'all';
@@ -238,22 +239,5 @@ function FlaggedList({ items }: { items: FlaggedBusiness[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-function Pagination({ meta, onChange }: { meta: Paginated<unknown>['meta']; onChange: (page: number) => void }) {
-  if (meta.totalPages <= 1) return null;
-  return (
-    <div className="flex items-center justify-between text-sm text-slate-600">
-      <Button variant="secondary" disabled={meta.page <= 1} onClick={() => onChange(meta.page - 1)}>
-        Précédent
-      </Button>
-      <span>
-        Page {meta.page} sur {meta.totalPages}
-      </span>
-      <Button variant="secondary" disabled={meta.page >= meta.totalPages} onClick={() => onChange(meta.page + 1)}>
-        Suivant
-      </Button>
-    </div>
   );
 }
