@@ -1,0 +1,140 @@
+import type {
+  AuthUser,
+  BusinessDetail,
+  BusinessStatus,
+  FlaggedBusiness,
+  ModerationAction,
+  Paginated,
+  PlatformBusinessRow,
+  ReportStatus,
+} from './types';
+
+// Chemin relatif : le site relaie /api vers l'API (voir next.config.mjs), pour que les cookies
+// de session restent « premier parti ».
+const API_URL = '/api';
+const CSRF_COOKIE = 'boutik_csrf_token';
+const CSRF_HEADER = 'x-csrf-token';
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+async function toError(res: Response): Promise<ApiError> {
+  const body = await res.json().catch(() => ({}));
+  const message = Array.isArray(body.message) ? body.message.join(' ') : body.message;
+  return new ApiError(message ?? 'Une erreur est survenue. Merci de réessayer.', res.status);
+}
+
+async function tryRefresh(): Promise<boolean> {
+  const res = await fetch(`${API_URL}/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { [CSRF_HEADER]: readCookie(CSRF_COOKIE) ?? '' },
+  });
+  return res.ok;
+}
+
+/**
+ * Requête authentifiée : les cookies (dont l'access token httpOnly) partent automatiquement ;
+ * on ajoute l'en-tête CSRF pour les requêtes qui modifient un état. Un 401 déclenche UN
+ * rafraîchissement de session avant de réessayer.
+ */
+export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const method = (options.method ?? 'GET').toUpperCase();
+  const isMutating = !['GET', 'HEAD', 'OPTIONS'].includes(method);
+
+  const doFetch = () =>
+    fetch(`${API_URL}${path}`, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(isMutating ? { [CSRF_HEADER]: readCookie(CSRF_COOKIE) ?? '' } : {}),
+        ...(options.headers ?? {}),
+      },
+    });
+
+  let res = await doFetch();
+  if (res.status === 401 && !path.startsWith('/auth/')) {
+    if (await tryRefresh()) res = await doFetch();
+  }
+  if (!res.ok) throw await toError(res);
+  return (res.status === 204 ? null : await res.json()) as T;
+}
+
+const json = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
+
+// ---------- Authentification ----------
+
+export async function login(email: string, password: string): Promise<void> {
+  await request('/auth/login', json({ email, password }));
+}
+
+export async function logout(): Promise<void> {
+  await request('/auth/logout', { method: 'POST' }).catch(() => undefined);
+}
+
+/** Compte connecté, ou null si personne n'est connecté. */
+export async function fetchMe(): Promise<AuthUser | null> {
+  try {
+    return await request<AuthUser>('/auth/me');
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return null;
+    throw error;
+  }
+}
+
+export interface RegisterBusinessInput {
+  ownerName: string;
+  email: string;
+  password: string;
+  businessName: string;
+  slug?: string;
+  country: string;
+  description?: string;
+}
+
+export function registerBusiness(input: RegisterBusinessInput) {
+  return request<{ business: { id: string; name: string; slug: string; status: BusinessStatus } }>(
+    '/businesses/register',
+    json(input),
+  );
+}
+
+// ---------- Espace plateforme (modération) ----------
+
+export function listPlatformBusinesses(params: { status?: BusinessStatus; search?: string; page?: number }) {
+  const query = new URLSearchParams();
+  if (params.status) query.set('status', params.status);
+  if (params.search) query.set('search', params.search);
+  query.set('page', String(params.page ?? 1));
+  query.set('limit', '20');
+  return request<Paginated<PlatformBusinessRow>>(`/platform/businesses?${query}`);
+}
+
+export function getPlatformBusiness(id: string) {
+  return request<BusinessDetail>(`/platform/businesses/${id}`);
+}
+
+export function moderateBusiness(id: string, action: ModerationAction, reason?: string) {
+  return request<{ id: string; status: BusinessStatus }>(`/platform/businesses/${id}/${action}`, json({ reason }));
+}
+
+export function listFlaggedBusinesses() {
+  return request<FlaggedBusiness[]>('/platform/reports/flagged');
+}
+
+export function setReportStatus(reportId: string, status: Exclude<ReportStatus, 'OPEN'>) {
+  return request(`/platform/reports/${reportId}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+}

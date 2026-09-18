@@ -6,3 +6,5 @@ uploads
 backups
 .vercel
 .DS_Store
+.next
+*.tsbuildinfo

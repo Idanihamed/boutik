@@ -4,7 +4,9 @@ Plateforme multi-entreprise : chaque responsable crée son entreprise (nom, logo
 gère sa propre vitrine ; l'administrateur de la plateforme valide, suspend ou bannit les
 entreprises. Issue du socle du projet Amza Futur Telecom (qui reste indépendant).
 
-**État : étape 1 (backend).** Le site web et l'application mobile viennent ensuite.
+**État : étape 1 (backend) et début de l'étape 2 (site web : inscription, connexion, console de
+modération de la plateforme).** L'espace complet du responsable (produits, commandes, messages),
+la vitrine publique et l'application mobile viennent ensuite.
 
 ## Principes
 
@@ -31,6 +33,18 @@ npm run prisma:seed         # rôles, permissions, compte plateforme
 npm run db:seed:demo        # (dev uniquement) entreprise « demo »
 npm run start:dev
 ```
+
+## Démarrer (site web)
+
+```bash
+cd frontend
+cp .env.local.example .env.local   # BACKEND_ORIGIN = adresse de l'API
+npm install
+npm run dev                        # http://localhost:3100
+```
+
+Le navigateur n'appelle jamais l'API directement : il passe par `/api` sur le site, relayé par Next
+(`next.config.mjs`), ce qui garde les cookies de session « premier parti ».
 
 ## Tests
 

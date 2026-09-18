@@ -11,10 +11,12 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { AuthenticatedUser } from './types/authenticated-user.type';
 
-// ThrottlerGuard n'est actif que sur ce contrôleur (pas globalement, voir AppModule) : les
-// routes d'authentification sont les seules où limiter le débit par IP a du sens ici, pour
-// contrer les attaques par force brute sur le mot de passe (§26 du cahier des charges).
-@UseGuards(ThrottlerGuard)
+// La limitation de débit par IP est posée route par route (@UseGuards(ThrottlerGuard) +
+// @Throttle) et NON sur tout le contrôleur : seules les routes qui se prêtent à la force brute
+// ou à la création de comptes en masse sont limitées. `GET /auth/me` est appelée par les
+// clients à chaque chargement de page ; la plafonner à quelques requêtes par minute et par IP
+// déconnecterait des utilisateurs légitimes (plusieurs personnes partagent souvent la même IP
+// publique sur un réseau mobile).
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -23,6 +25,7 @@ export class AuthController {
   ) {}
 
   @Public()
+  @UseGuards(ThrottlerGuard)
   // 10 tentatives / minute / IP : largement suffisant pour un utilisateur légitime qui se
   // trompe de mot de passe, mais ralentit fortement une attaque par force brute — combiné au
   // coût du bcrypt (~100 ms/essai), ça rend une attaque par dictionnaire impraticable.
@@ -41,6 +44,7 @@ export class AuthController {
   // retrouver ses commandes. Même limitation de débit que la connexion, contre la création de
   // comptes en masse.
   @Public()
+  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   register(@Body() dto: RegisterCustomerDto) {
@@ -48,6 +52,7 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
@@ -80,6 +85,9 @@ export class AuthController {
 
   // Aucun @RequirePermissions : accessible à tout compte connecté, quel que soit son rôle —
   // voir le commentaire de AuthService.changeOwnPassword.
+  // Devine-le-mot-de-passe-actuel : même plafond que la connexion.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @Patch('me/password')
   async changeOwnPassword(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChangePasswordDto) {
