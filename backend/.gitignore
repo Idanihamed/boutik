@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+uploads/*
+!uploads/.gitkeep
+*.log
+# Sauvegardes de base de données (données réelles de clients) : jamais dans le dépôt.
+backups/
