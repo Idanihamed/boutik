@@ -1,4 +1,4 @@
-// Schéma Prisma — Boutik (plateforme multi-entreprise, issue du socle Amza Futur Telecom)
+// Schéma Prisma — Boutik (plateforme multi-entreprise)
 // Phase 1 (fondations) : Auth/RBAC + Catégories + Marques + Produits.
 // Phase 2 : Promotions/Réductions (§13-17 du cahier des charges).
 // Phase 3 : Boutiques (§19, §5.8 du cahier des charges).
@@ -103,7 +103,7 @@ enum NotificationType {
 model Business {
   id              String         @id @default(cuid())
   name            String
-  // Identifiant dans l'URL publique de la vitrine (ex. boutik.com/amza) — voir BusinessesService.
+  // Identifiant dans l'URL publique de la vitrine (ex. boutik.com/ma-boutique) — voir BusinessesService.
   slug            String         @unique
   logo            String?
   description     String?
@@ -684,7 +684,7 @@ model Setting {
   linkedinUrl    String?
   xUrl           String?
   // Visuels du hero de la page d'accueil (chemins /uploads/..., voir MediaModule) : uploadés
-  // par l'admin depuis Paramètres plutôt que codés en dur, pour qu'Amza puisse les remplacer
+  // par l'admin depuis Paramètres plutôt que codés en dur, pour que chaque entreprise puisse les remplacer
   // par ses propres images sans intervention technique.
   heroImage1     String?
   heroImage2     String?

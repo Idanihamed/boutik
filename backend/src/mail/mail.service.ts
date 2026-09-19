@@ -15,7 +15,7 @@ export interface SendMailInput {
  * c'est d'ailleurs la voie que Resend recommande en priorité, le SMTP n'étant qu'une couche de
  * compatibilité chez eux.
  *
- * Tant qu'Amza n'a pas rempli RESEND_API_KEY, ce service ne plante jamais : il journalise
+ * Tant que RESEND_API_KEY n'est pas renseignée, ce service ne plante jamais : il journalise
  * l'email qu'il AURAIT envoyé et ne fait rien d'autre (no-op). Ça permet de brancher dès
  * maintenant les appels (confirmation de commande, accusé de réception de message) sans
  * attendre que ce compte existe, et de les activer plus tard par simple ajout d'une variable

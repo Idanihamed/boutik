@@ -2,7 +2,7 @@
 
 Plateforme multi-entreprise : chaque responsable crée son entreprise (nom, logo, pays, devise) et
 gère sa propre vitrine ; l'administrateur de la plateforme valide, suspend ou bannit les
-entreprises. Issue du socle du projet Amza Futur Telecom (qui reste indépendant).
+entreprises.
 
 **État : backend, site web (inscription, connexion, console de modération, catalogue du
 responsable) et vitrine publique (accueil, produits, panier, commande, suivi, contact,

@@ -1,7 +1,7 @@
 {
   "name": "boutik-backend",
   "version": "1.0.0",
-  "description": "API backend Amza Futur Telecom (NestJS + Prisma + PostgreSQL)",
+  "description": "API backend Boutik (NestJS + Prisma + PostgreSQL)",
   "private": true,
   "scripts": {
     "build": "nest build",

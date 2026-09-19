@@ -20,7 +20,7 @@ export class RegisterBusinessDto {
   @MaxLength(100)
   businessName: string;
 
-  // Identifiant dans l'URL de la vitrine (ex. "amza" pour boutik.com/amza). Généré à partir du
+  // Identifiant dans l'URL de la vitrine (ex. "ma-boutique" pour boutik.com/ma-boutique). Généré à partir du
   // nom si absent.
   @IsOptional()
   @IsString()
