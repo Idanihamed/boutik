@@ -18,6 +18,8 @@ import type {
   Product,
   ProductInput,
   ProductStatus,
+  Promotion,
+  PromotionInput,
   ReportStatus,
   Settings,
 } from './types';
@@ -248,3 +250,15 @@ export function registerCustomer(input: { name: string; email: string; password:
 export function safeReturnPath(value: string | null | undefined): string | null {
   return value && value.startsWith('/') && !value.startsWith('//') && !value.includes('\\') ? value : null;
 }
+
+// ---------- Promotions ----------
+
+export function listPromotions(params: { page?: number } = {}) {
+  return request<Paginated<Promotion>>(`/admin/promotions?page=${params.page ?? 1}&limit=50`);
+}
+export const createPromotion = (input: PromotionInput) => request<Promotion>('/admin/promotions', send('POST', input));
+export const updatePromotion = (id: string, input: Partial<PromotionInput>) =>
+  request<Promotion>(`/admin/promotions/${id}`, send('PATCH', input));
+export const deletePromotion = (id: string) => request(`/admin/promotions/${id}`, send('DELETE'));
+export const setPromotionStatus = (id: string, action: 'activate' | 'disable' | 'draft') =>
+  request<Promotion>(`/admin/promotions/${id}/${action}`, send('PATCH'));

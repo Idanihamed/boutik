@@ -281,3 +281,42 @@ export interface DashboardStats {
   messages: { untreated: number };
   orders: { pending: number };
 }
+
+// ---------- Promotions (espace du responsable) ----------
+
+export type PromotionType = 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FIXED_PRICE';
+export type PromotionAdminStatus = 'DRAFT' | 'ACTIVE' | 'DISABLED';
+export type PromotionDisplayStatus = 'DRAFT' | 'SCHEDULED' | 'ACTIVE' | 'EXPIRED' | 'DISABLED';
+
+export interface Promotion {
+  id: string;
+  name: string;
+  description: string | null;
+  type: PromotionType;
+  value: number;
+  startsAt: string;
+  endsAt: string;
+  adminStatus: PromotionAdminStatus;
+  displayStatus: PromotionDisplayStatus;
+  conditions: string | null;
+  bannerTitle: string | null;
+  bannerSubtitle: string | null;
+  bannerImage: string | null;
+  products: { id: string; name: string; slug: string }[];
+  categories: { id: string; name: string; slug: string }[];
+}
+
+export interface PromotionInput {
+  name: string;
+  description?: string;
+  type: PromotionType;
+  value: number;
+  startsAt: string;
+  endsAt: string;
+  conditions?: string;
+  bannerTitle?: string;
+  bannerSubtitle?: string;
+  bannerImage?: string;
+  productIds: string[];
+  categoryIds: string[];
+}

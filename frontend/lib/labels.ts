@@ -230,3 +230,32 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 55);
 }
+
+export const PROMOTION_STATUS_LABELS = {
+  DRAFT: 'Brouillon',
+  SCHEDULED: 'Programmée',
+  ACTIVE: 'En cours',
+  EXPIRED: 'Terminée',
+  DISABLED: 'Désactivée',
+} as const;
+
+export const PROMOTION_STATUS_STYLES = {
+  DRAFT: 'bg-slate-100 text-slate-700',
+  SCHEDULED: 'bg-blue-100 text-blue-800',
+  ACTIVE: 'bg-green-100 text-green-800',
+  EXPIRED: 'bg-slate-100 text-slate-500',
+  DISABLED: 'bg-amber-100 text-amber-800',
+} as const;
+
+export const PROMOTION_TYPE_LABELS = {
+  PERCENTAGE: 'Pourcentage de réduction',
+  FIXED_AMOUNT: 'Montant retiré du prix',
+  FIXED_PRICE: 'Prix fixe',
+} as const;
+
+/** Résumé lisible de la réduction, ex. « -20 % » ou « -500 FCFA ». */
+export function describePromotionValue(type: keyof typeof PROMOTION_TYPE_LABELS, value: number, currency: string): string {
+  if (type === 'PERCENTAGE') return `-${value} %`;
+  if (type === 'FIXED_AMOUNT') return `-${formatPrice(value, currency)}`;
+  return `Prix : ${formatPrice(value, currency)}`;
+}

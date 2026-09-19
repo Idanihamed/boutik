@@ -12,6 +12,7 @@ const NAV = [
   { href: '/espace/messages', label: 'Messages', permission: 'messages:read' },
   { href: '/espace/produits', label: 'Produits', permission: 'products:read' },
   { href: '/espace/categories', label: 'Catégories', permission: 'categories:read' },
+  { href: '/espace/promotions', label: 'Promotions', permission: 'promotions:read' },
   { href: '/espace/marques', label: 'Marques', permission: 'brands:read' },
   { href: '/espace/parametres', label: 'Paramètres', permission: 'settings:read' },
   { href: '/espace/entreprise', label: 'Mon entreprise', permission: 'business:read' },
