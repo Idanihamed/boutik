@@ -259,3 +259,9 @@ export function describePromotionValue(type: keyof typeof PROMOTION_TYPE_LABELS,
   if (type === 'FIXED_AMOUNT') return `-${formatPrice(value, currency)}`;
   return `Prix : ${formatPrice(value, currency)}`;
 }
+
+export const ROLE_DESCRIPTIONS: Record<string, string> = {
+  OWNER: 'Accès complet : équipe, paramètres, produits, promotions, commandes et messages.',
+  GESTIONNAIRE: 'Produits, promotions, commandes et messages. Pas d’accès à l’équipe ni aux paramètres.',
+  EDITEUR: 'Crée et modifie les produits. Pas de commandes, de promotions ni de paramètres.',
+};

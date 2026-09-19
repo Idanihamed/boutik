@@ -14,6 +14,7 @@ const NAV = [
   { href: '/espace/categories', label: 'Catégories', permission: 'categories:read' },
   { href: '/espace/promotions', label: 'Promotions', permission: 'promotions:read' },
   { href: '/espace/marques', label: 'Marques', permission: 'brands:read' },
+  { href: '/espace/equipe', label: 'Équipe', permission: 'users:read' },
   { href: '/espace/parametres', label: 'Paramètres', permission: 'settings:read' },
   { href: '/espace/entreprise', label: 'Mon entreprise', permission: 'business:read' },
 ] as const;

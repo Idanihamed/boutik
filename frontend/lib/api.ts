@@ -22,6 +22,8 @@ import type {
   PromotionInput,
   ReportStatus,
   Settings,
+  TeamMember,
+  TeamMemberInput,
 } from './types';
 
 // Chemin relatif : le site relaie /api vers l'API (voir next.config.mjs), pour que les cookies
@@ -262,3 +264,12 @@ export const updatePromotion = (id: string, input: Partial<PromotionInput>) =>
 export const deletePromotion = (id: string) => request(`/admin/promotions/${id}`, send('DELETE'));
 export const setPromotionStatus = (id: string, action: 'activate' | 'disable' | 'draft') =>
   request<Promotion>(`/admin/promotions/${id}/${action}`, send('PATCH'));
+
+// ---------- Équipe ----------
+
+export const listTeam = () => request<TeamMember[]>('/admin/users');
+export const createTeamMember = (input: TeamMemberInput & { password: string }) =>
+  request<TeamMember>('/admin/users', send('POST', input));
+export const updateTeamMember = (id: string, input: Partial<TeamMemberInput>) =>
+  request<TeamMember>(`/admin/users/${id}`, send('PATCH', input));
+export const deleteTeamMember = (id: string) => request(`/admin/users/${id}`, send('DELETE'));

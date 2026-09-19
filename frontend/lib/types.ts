@@ -320,3 +320,22 @@ export interface PromotionInput {
   productIds: string[];
   categoryIds: string[];
 }
+
+// ---------- Équipe (espace du responsable) ----------
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface TeamMemberInput {
+  name: string;
+  email: string;
+  roleName: string;
+  password?: string;
+  isActive?: boolean;
+}
