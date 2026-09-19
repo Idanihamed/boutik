@@ -1,3 +1,5 @@
+// Doit rester le PREMIER import : corrige CLOUDINARY_URL avant que le SDK Cloudinary ne la lise.
+import './normalize-env';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
