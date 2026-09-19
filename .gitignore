@@ -8,3 +8,4 @@ backups
 .DS_Store
 .next
 *.tsbuildinfo
+.env.local
