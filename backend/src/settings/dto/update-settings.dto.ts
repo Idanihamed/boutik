@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUrl, Matches, MaxLength, ValidateIf } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUrl, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { IsUploadedImageUrl } from '../../common/validators/uploaded-image-url.validator';
 
 // Chaque champ accepte une chaîne vide, qui signifie « retirer cette valeur » (voir
@@ -60,4 +60,19 @@ export class UpdateSettingsDto {
   @ValidateIf(notEmpty)
   @IsUploadedImageUrl()
   heroImage2?: string;
+
+  // Livraison à domicile (0 = gratuite). Montants entiers dans la devise de l'entreprise.
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100_000_000)
+  shippingFee?: number;
+
+  // Seuil de commande à partir duquel la livraison est offerte ; null = jamais offerte.
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsInt()
+  @Min(0)
+  @Max(100_000_000)
+  freeShippingThreshold?: number | null;
 }

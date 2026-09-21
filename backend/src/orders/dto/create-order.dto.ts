@@ -23,6 +23,12 @@ export class CreateOrderDto {
   @IsString()
   boutiqueId?: string;
 
+  /** Code promo saisi par le client (facultatif). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  promoCode?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(1000)

@@ -1,6 +1,7 @@
 import { BadRequestException, HttpException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { TenantPrisma } from '../tenancy/tenant-prisma';
+import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { PromotionsService } from '../promotions/promotions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
@@ -41,9 +42,12 @@ describe('OrdersService.create', () => {
     boutique: { findUnique: jest.Mock };
     business: { findUnique: jest.Mock };
     product: { findMany: jest.Mock; updateMany: jest.Mock };
+    setting: { findFirst: jest.Mock };
+    promoCode: { updateMany: jest.Mock };
     $transaction: jest.Mock;
   };
   let promotionsService: { getApplicablePromotionsFor: jest.Mock };
+  let promoCodesService: { findByCode: jest.Mock };
   let notificationsService: { create: jest.Mock };
   let mailService: { send: jest.Mock };
 
@@ -60,13 +64,16 @@ describe('OrdersService.create', () => {
         findMany: jest.fn().mockResolvedValue([buildProduct()]),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
+      setting: { findFirst: jest.fn().mockResolvedValue(null) }, // pas de frais de livraison configurés
+      promoCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       // Simule tx.product.updateMany / tx.order.create en réutilisant les mêmes mocks que prisma
       // directement : le comportement testé (compte de lignes affectées) est identique.
       $transaction: jest.fn(async (cb: (tx: unknown) => unknown) =>
-        cb({ product: prisma.product, order: prisma.order }),
+        cb({ product: prisma.product, order: prisma.order, promoCode: prisma.promoCode }),
       ),
     };
     promotionsService = { getApplicablePromotionsFor: jest.fn().mockResolvedValue(new Map()) };
+    promoCodesService = { findByCode: jest.fn().mockResolvedValue(null) };
     notificationsService = { create: jest.fn().mockResolvedValue(undefined) };
     mailService = { send: jest.fn().mockResolvedValue(undefined) };
 
@@ -75,6 +82,7 @@ describe('OrdersService.create', () => {
       promotionsService as unknown as PromotionsService,
       notificationsService as unknown as NotificationsService,
       mailService as unknown as MailService,
+      promoCodesService as unknown as PromoCodesService,
     );
 
     prisma.order.create.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
@@ -206,6 +214,96 @@ describe('OrdersService.create', () => {
     });
   });
 
+  describe('livraison et code promo', () => {
+    const promo = (overrides: Record<string, unknown> = {}) => ({
+      id: 'promo-1', code: 'BIENVENUE10', type: 'PERCENTAGE', value: 10, minOrderAmount: null, maxUses: null,
+      usedCount: 0, startsAt: null, endsAt: null, isActive: true, ...overrides,
+    });
+    const createdData = () => prisma.order.create.mock.calls[0][0].data;
+
+    it('sans réglage, la commande n’a ni frais ni réduction (total = somme des lignes)', async () => {
+      await service.create(buildDto({ items: [{ productId: 'prod-1', quantity: 2 }] }));
+      expect(createdData()).toMatchObject({ totalAmount: 20000, shippingFee: 0, discountAmount: 0, promoCode: null });
+    });
+
+    it('ajoute les frais de livraison à domicile au total', async () => {
+      prisma.setting.findFirst.mockResolvedValue({ shippingFee: 1500, freeShippingThreshold: null });
+      await service.create(buildDto({ items: [{ productId: 'prod-1', quantity: 1 }] }));
+      expect(createdData()).toMatchObject({ totalAmount: 11500, shippingFee: 1500 });
+    });
+
+    it('n’ajoute aucun frais pour un retrait en boutique', async () => {
+      prisma.setting.findFirst.mockResolvedValue({ shippingFee: 1500, freeShippingThreshold: null });
+      prisma.boutique.findUnique.mockResolvedValue({ id: 'b1', isActive: true });
+      await service.create(buildDto({ boutiqueId: 'b1' }));
+      expect(createdData()).toMatchObject({ totalAmount: 10000, shippingFee: 0 });
+    });
+
+    it('offre la livraison au-delà du seuil', async () => {
+      prisma.setting.findFirst.mockResolvedValue({ shippingFee: 1500, freeShippingThreshold: 20000 });
+      await service.create(buildDto({ items: [{ productId: 'prod-1', quantity: 2 }] }));
+      expect(createdData()).toMatchObject({ totalAmount: 20000, shippingFee: 0 });
+    });
+
+    it('applique un code promo, garde son texte et consomme une utilisation', async () => {
+      promoCodesService.findByCode.mockResolvedValue(promo());
+      await service.create(buildDto({ items: [{ productId: 'prod-1', quantity: 2 }], promoCode: ' bienvenue10 ' }));
+      expect(createdData()).toMatchObject({ discountAmount: 2000, totalAmount: 18000, promoCode: 'BIENVENUE10' });
+      expect(prisma.promoCode.updateMany).toHaveBeenCalledWith({
+        where: { id: 'promo-1' },
+        data: { usedCount: { increment: 1 } },
+      });
+    });
+
+    it('le seuil de livraison offerte se calcule APRÈS le code promo', async () => {
+      prisma.setting.findFirst.mockResolvedValue({ shippingFee: 1500, freeShippingThreshold: 20000 });
+      promoCodesService.findByCode.mockResolvedValue(promo({ value: 10 }));
+      await service.create(buildDto({ items: [{ productId: 'prod-1', quantity: 2 }], promoCode: 'BIENVENUE10' }));
+      // 20000 - 2000 = 18000 < 20000 : la livraison redevient payante.
+      expect(createdData()).toMatchObject({ discountAmount: 2000, shippingFee: 1500, totalAmount: 19500 });
+    });
+
+    it('refuse la commande si le code saisi est invalide (le client n’est pas facturé plein tarif à son insu)', async () => {
+      promoCodesService.findByCode.mockResolvedValue(null);
+      await expect(service.create(buildDto({ promoCode: 'FAUX' }))).rejects.toThrow('n’existe pas');
+      expect(prisma.order.create).not.toHaveBeenCalled();
+      expect(prisma.product.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('refuse la commande si le dernier usage du code a été pris entre-temps (consommation atomique)', async () => {
+      promoCodesService.findByCode.mockResolvedValue(promo({ maxUses: 1, usedCount: 0 }));
+      prisma.promoCode.updateMany.mockResolvedValue({ count: 0 });
+      await expect(service.create(buildDto({ promoCode: 'BIENVENUE10' }))).rejects.toThrow('nombre maximal');
+      expect(prisma.order.create).not.toHaveBeenCalled();
+    });
+
+    it('quote renvoie le même calcul sans rien enregistrer', async () => {
+      prisma.setting.findFirst.mockResolvedValue({ shippingFee: 1500, freeShippingThreshold: 30000 });
+      promoCodesService.findByCode.mockResolvedValue(promo());
+      const res = await inBusiness(() =>
+        service.quote({ items: [{ productId: 'prod-1', quantity: 2 }], promoCode: 'bienvenue10' }),
+      );
+      expect(res).toEqual({
+        subtotal: 20000,
+        discount: 2000,
+        shippingFee: 1500,
+        total: 19500,
+        freeShippingThreshold: 30000,
+        promoCode: { code: 'BIENVENUE10', valid: true, message: null },
+      });
+      expect(prisma.order.create).not.toHaveBeenCalled();
+      expect(prisma.promoCode.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('quote signale un code refusé sans faire échouer l’aperçu', async () => {
+      promoCodesService.findByCode.mockResolvedValue(null);
+      const res = await inBusiness(() => service.quote({ items: [{ productId: 'prod-1', quantity: 1 }], promoCode: 'FAUX' }));
+      expect(res.discount).toBe(0);
+      expect(res.total).toBe(10000);
+      expect(res.promoCode).toMatchObject({ code: 'FAUX', valid: false });
+    });
+  });
+
   it('n’envoie aucun email quand customerContact est un numéro de téléphone', async () => {
     await service.create(buildDto({ customerContact: '0700000000' }));
     expect(mailService.send).not.toHaveBeenCalled();
@@ -228,6 +326,7 @@ describe('OrdersService.findByReference', () => {
       {} as PromotionsService,
       {} as NotificationsService,
       {} as MailService,
+      {} as PromoCodesService,
     );
 
     await expect(service.findByReference('ABC12345', 'mauvais-contact@example.com')).rejects.toThrow(

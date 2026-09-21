@@ -10,6 +10,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { BrandsModule } from './brands/brands.module';
 import { ProductsModule } from './products/products.module';
 import { PromotionsModule } from './promotions/promotions.module';
+import { PromoCodesModule } from './promo-codes/promo-codes.module';
 import { BoutiquesModule } from './boutiques/boutiques.module';
 import { ArticlesModule } from './articles/articles.module';
 import { PagesModule } from './pages/pages.module';
@@ -46,6 +47,7 @@ import { PlatformModule } from './platform/platform.module';
     BrandsModule,
     ProductsModule,
     PromotionsModule,
+    PromoCodesModule,
     BoutiquesModule,
     ArticlesModule,
     PagesModule,

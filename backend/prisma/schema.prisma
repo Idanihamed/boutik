@@ -120,6 +120,7 @@ model Business {
   reports       BusinessReport[]
   moderationLog BusinessModerationEvent[]
 
+  promoCodes      PromoCode[]
   categories      Category[]
   brands          Brand[]
   products        Product[]
@@ -394,6 +395,37 @@ model Promotion {
   @@map("promotions")
 }
 
+enum PromoCodeType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+// Code que le client saisit dans son panier (différent d'une Promotion, qui s'applique seule
+// aux produits). Le code est stocké en MAJUSCULES : la saisie du client n'est pas sensible à la casse.
+model PromoCode {
+  id             String        @id @default(cuid())
+  businessId     String        @default("")
+  business       Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  code           String
+  type           PromoCodeType
+  // Pourcentage (1-100) pour PERCENTAGE, montant dans la devise de l'entreprise pour FIXED_AMOUNT.
+  value          Int
+  // Montant minimum de la commande (avant livraison) pour pouvoir utiliser le code.
+  minOrderAmount Int?
+  // Nombre total d'utilisations permises (null = illimité) et nombre déjà consommé.
+  maxUses        Int?
+  usedCount      Int           @default(0)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([businessId, code])
+  @@index([businessId])
+  @@map("promo_codes")
+}
+
 model PromotionProduct {
   promotionId String
   productId   String
@@ -596,6 +628,11 @@ model Order {
   // Somme des sous-totaux de chaque ligne (voir OrderItem.subtotal), au moment de la commande —
   // ne recalcule jamais après coup même si les prix produits changent ensuite.
   totalAmount Int
+  // Détail du total : totalAmount = somme des lignes - discountAmount + shippingFee. Figés à la
+  // commande (un changement de tarif ou de code promo ensuite ne modifie jamais une commande passée).
+  discountAmount Int     @default(0)
+  shippingFee    Int     @default(0)
+  promoCode      String?
 
   items OrderItem[]
 
@@ -705,6 +742,10 @@ model Setting {
   // par ses propres images sans intervention technique.
   heroImage1     String?
   heroImage2     String?
+  // Livraison à domicile : montant fixe (0 = gratuite) et seuil de commande à partir duquel elle
+  // devient offerte (null = jamais). Le retrait en boutique n'a jamais de frais.
+  shippingFee           Int      @default(0)
+  freeShippingThreshold Int?
   updatedAt      DateTime @updatedAt
 
   @@map("settings")

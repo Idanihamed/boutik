@@ -6,6 +6,7 @@ import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QueryOrdersDto } from './dto/query-orders.dto';
+import { QuoteOrderDto } from './dto/quote-order.dto';
 import { TrackOrderDto } from './dto/track-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
@@ -22,6 +23,16 @@ export class OrdersController {
   @Post('orders')
   create(@Body() dto: CreateOrderDto, @Req() req: Request) {
     return this.ordersService.create(dto, req.ip);
+  }
+
+  // Aperçu du panier (sous-total, code promo, livraison, total) : n'enregistre rien. Plafond plus large
+  // que la commande : le client peut essayer plusieurs codes et changer ses quantités.
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 40, ttl: 60000 } })
+  @Post('orders/quote')
+  quote(@Body() dto: QuoteOrderDto) {
+    return this.ordersService.quote(dto);
   }
 
   // Même principe de throttle dédié que ContactMessagesController.track : des lectures

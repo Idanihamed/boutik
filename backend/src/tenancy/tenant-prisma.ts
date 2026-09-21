@@ -14,6 +14,7 @@ export const TENANT_MODELS = new Set([
   'Brand',
   'Product',
   'Promotion',
+  'PromoCode',
   'Boutique',
   'Article',
   'Page',

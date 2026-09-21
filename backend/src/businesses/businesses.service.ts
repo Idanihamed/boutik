@@ -159,6 +159,8 @@ export class BusinessesService {
         xUrl: true,
         heroImage1: true,
         heroImage2: true,
+        shippingFee: true,
+        freeShippingThreshold: true,
       },
     });
 

@@ -86,6 +86,7 @@ describe('modèles isolés', () => {
         'Order',
         'Page',
         'Product',
+        'PromoCode',
         'Promotion',
         'Setting',
       ].sort(),

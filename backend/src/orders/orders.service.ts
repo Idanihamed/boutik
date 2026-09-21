@@ -1,6 +1,7 @@
 import { BadRequestException, HttpException, HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { TENANT_PRISMA, TenantPrisma } from '../tenancy/tenant-prisma';
+import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { PromotionsService } from '../promotions/promotions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
@@ -10,8 +11,10 @@ import { isEmailLike } from '../common/utils/is-email.util';
 import { escapeHtml } from '../common/utils/escape-html.util';
 import { formatMoney } from '../common/utils/money.util';
 import { computeStockStatus } from '../common/utils/stock-status.util';
+import { computeShippingFee, evaluatePromoCode, normalizePromoCode } from '../common/utils/order-pricing.util';
 import { currentBusinessId } from '../tenancy/tenant-context';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { QuoteOrderDto } from './dto/quote-order.dto';
 import { QueryOrdersDto } from './dto/query-orders.dto';
 
 // Anti-spam par IP : même principe et mêmes valeurs par défaut que pour le formulaire de
@@ -32,6 +35,7 @@ export class OrdersService {
     private readonly promotionsService: PromotionsService,
     private readonly notificationsService: NotificationsService,
     private readonly mailService: MailService,
+    private readonly promoCodesService: PromoCodesService,
   ) {}
 
   /** Nom et devise de l'entreprise courante (pour les messages envoyés à ses clients). */
@@ -43,25 +47,12 @@ export class OrdersService {
     return business ?? { name: 'la boutique', currency: 'XOF' };
   }
 
-  // ---------- Public ----------
-
-  async create(dto: CreateOrderDto, ipAddress?: string) {
-    if (dto.website) {
-      // Piège à bots rempli : voir ContactMessagesService.create pour le même mécanisme.
-      return { success: true };
-    }
-
-    if (ipAddress) {
-      const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000);
-      const recentCount = await this.prisma.order.count({ where: { ipAddress, createdAt: { gte: since } } });
-      if (recentCount >= RATE_LIMIT_MAX_ORDERS) {
-        throw new HttpException(
-          'Trop de commandes envoyées récemment. Merci de réessayer dans quelques minutes.',
-          HttpStatus.TOO_MANY_REQUESTS,
-        );
-      }
-    }
-
+  /**
+   * Prix d'une commande, calculé côté serveur uniquement (jamais transmis par le client) : lignes,
+   * code promo, livraison, total. Partagé par l'aperçu du panier (quote) et la commande réelle
+   * (create), pour que le montant affiché soit toujours celui facturé.
+   */
+  private async priceOrder(dto: { items: { productId: string; quantity: number }[]; boutiqueId?: string; promoCode?: string }) {
     if (dto.boutiqueId) {
       const boutique = await this.prisma.boutique.findUnique({ where: { id: dto.boutiqueId } });
       if (!boutique || !boutique.isActive) {
@@ -113,7 +104,76 @@ export class OrdersService {
       };
     });
 
-    const totalAmount = lines.reduce((sum, line) => sum + line.subtotal, 0);
+    const subtotal = lines.reduce((sum, line) => sum + line.subtotal, 0);
+    const business = await this.currentBusiness();
+
+    const promoText = dto.promoCode?.trim();
+    const promo = promoText ? await this.promoCodesService.findByCode(promoText) : null;
+    const promoCheck = promoText ? evaluatePromoCode(promo, subtotal, business.currency) : null;
+    const discount = promoCheck?.valid ? promoCheck.discount : 0;
+
+    const settings = await this.prisma.setting.findFirst();
+    const shippingSettings = {
+      shippingFee: settings?.shippingFee ?? 0,
+      freeShippingThreshold: settings?.freeShippingThreshold ?? null,
+    };
+    const shippingFee = computeShippingFee(shippingSettings, subtotal - discount, Boolean(dto.boutiqueId));
+
+    return {
+      productById,
+      lines,
+      subtotal,
+      discount,
+      shippingFee,
+      totalAmount: subtotal - discount + shippingFee,
+      freeShippingThreshold: shippingSettings.freeShippingThreshold,
+      promo,
+      promoText: promoText ? normalizePromoCode(promoText) : null,
+      promoCheck,
+    };
+  }
+
+  /** Aperçu du panier : sous-total, code promo, livraison et total, sans rien enregistrer. */
+  async quote(dto: QuoteOrderDto) {
+    const priced = await this.priceOrder(dto);
+    return {
+      subtotal: priced.subtotal,
+      discount: priced.discount,
+      shippingFee: priced.shippingFee,
+      total: priced.totalAmount,
+      freeShippingThreshold: priced.freeShippingThreshold,
+      promoCode: priced.promoText
+        ? { code: priced.promoText, valid: Boolean(priced.promoCheck?.valid), message: priced.promoCheck && !priced.promoCheck.valid ? priced.promoCheck.message : null }
+        : null,
+    };
+  }
+
+  // ---------- Public ----------
+
+  async create(dto: CreateOrderDto, ipAddress?: string) {
+    if (dto.website) {
+      // Piège à bots rempli : voir ContactMessagesService.create pour le même mécanisme.
+      return { success: true };
+    }
+
+    if (ipAddress) {
+      const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000);
+      const recentCount = await this.prisma.order.count({ where: { ipAddress, createdAt: { gte: since } } });
+      if (recentCount >= RATE_LIMIT_MAX_ORDERS) {
+        throw new HttpException(
+          'Trop de commandes envoyées récemment. Merci de réessayer dans quelques minutes.',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    }
+
+    const priced = await this.priceOrder(dto);
+    const { lines, productById, discount, shippingFee, totalAmount, promo, promoText, promoCheck } = priced;
+
+    // Un code saisi mais refusé bloque la commande : le client ne doit pas payer plein tarif sans le savoir.
+    if (promoCheck && !promoCheck.valid) {
+      throw new BadRequestException(promoCheck.message);
+    }
 
     let reference = generateReference();
     while (await this.prisma.order.findFirst({ where: { reference }, select: { id: true } })) {
@@ -138,6 +198,18 @@ export class OrdersService {
         }
       }
 
+      // Code promo : consommation atomique (le compteur ne dépasse jamais maxUses, même avec deux
+      // commandes simultanées sur la dernière utilisation).
+      if (promo && promoCheck?.valid) {
+        const used = await tx.promoCode.updateMany({
+          where: { id: promo.id, ...(promo.maxUses !== null ? { usedCount: { lt: promo.maxUses } } : {}) },
+          data: { usedCount: { increment: 1 } },
+        });
+        if (used.count === 0) {
+          throw new BadRequestException('Ce code promo a atteint son nombre maximal d’utilisations.');
+        }
+      }
+
       return tx.order.create({
         data: {
           reference,
@@ -147,6 +219,9 @@ export class OrdersService {
           boutiqueId: dto.boutiqueId,
           notes: dto.notes,
           totalAmount,
+          discountAmount: discount,
+          shippingFee,
+          promoCode: promoText && promoCheck?.valid ? promoText : null,
           ipAddress,
           items: { create: lines },
         },
@@ -191,7 +266,7 @@ export class OrdersService {
       await this.mailService.send({
         to: dto.customerContact,
         subject: `${business.name} : confirmation de votre commande ${reference}`,
-        html: `<p>Merci ${escapeHtml(dto.customerName)}, votre commande <strong>${reference}</strong> a bien été reçue par <strong>${escapeHtml(business.name)}</strong>.</p><ul>${itemsHtml}</ul><p>Total : ${formatMoney(totalAmount, business.currency)}</p><p>L'entreprise vous contactera pour la confirmer. Vous pouvez suivre votre commande avec la référence ci-dessus.</p>`,
+        html: `<p>Merci ${escapeHtml(dto.customerName)}, votre commande <strong>${reference}</strong> a bien été reçue par <strong>${escapeHtml(business.name)}</strong>.</p><ul>${itemsHtml}</ul>${discount > 0 ? `<p>Réduction (${escapeHtml(promoText ?? '')}) : -${formatMoney(discount, business.currency)}</p>` : ''}${shippingFee > 0 ? `<p>Livraison : ${formatMoney(shippingFee, business.currency)}</p>` : ''}<p>Total : ${formatMoney(totalAmount, business.currency)}</p><p>L'entreprise vous contactera pour la confirmer. Vous pouvez suivre votre commande avec la référence ci-dessus.</p>`,
       });
     }
 
@@ -216,6 +291,9 @@ export class OrdersService {
       reference: order.reference,
       status: order.status,
       totalAmount: order.totalAmount,
+      discountAmount: order.discountAmount,
+      shippingFee: order.shippingFee,
+      promoCode: order.promoCode,
       customerAddress: order.customerAddress,
       boutique: order.boutique ? { name: order.boutique.name, address: order.boutique.address } : null,
       createdAt: order.createdAt,
