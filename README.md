@@ -4,10 +4,25 @@ Plateforme multi-entreprise : chaque responsable crée son entreprise (nom, logo
 gère sa propre vitrine ; l'administrateur de la plateforme valide, suspend ou bannit les
 entreprises.
 
-**État : backend, site web (inscription, connexion, console de modération, catalogue du
-responsable) et vitrine publique (accueil, produits, panier, commande, suivi, contact,
-signalement).** À venir : gestion des commandes et messages côté responsable, promotions,
-paramètres et personnel, puis l'application mobile.
+**État : backend, site web (inscription, connexion, modération, espace du responsable : produits,
+commandes, messages, promotions, équipe, boutiques, notifications), vitrine publique et début de
+l'application mobile.** À venir : actualités et pages, notifications sur téléphone.
+
+## Application mobile (`mobile/`)
+
+Expo (React Native), pour le responsable et son équipe : connexion, accueil, commandes, messages.
+L'API reconnaît une application grâce à l'en-tête `X-Client: mobile` : elle renvoie alors les jetons
+dans le corps de la réponse (au lieu de cookies) et accepte `Authorization: Bearer`. Le site web
+n'est pas affecté.
+
+```
+cd mobile
+npm install
+npx expo start        # scanner le QR code avec l'application Expo Go (même wifi que le PC)
+```
+
+Par défaut l'application parle à l'API en ligne ; pour un serveur local :
+`EXPO_PUBLIC_API_URL=http://<adresse-du-pc>:3101/api npx expo start`.
 
 Vitrine : `/<adresse-de-l-entreprise>` (ex. `/demo`). Pour un déploiement derrière des relais
 (Vercel → Render), régler `TRUST_PROXY` côté API selon le nombre de relais, sinon l'anti-spam
