@@ -43,9 +43,17 @@ export function StoreFooter({ store }: { store: Storefront }) {
         <span>
           © {new Date().getFullYear()} {store.name} · Propulsé par <Link href="/" className="font-medium hover:underline">Boutik</Link>
         </span>
-        <Link href={`/${store.slug}/signaler`} className="hover:underline">
-          Signaler cette entreprise
-        </Link>
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Link href="/conditions" className="hover:underline">
+            Conditions
+          </Link>
+          <Link href="/confidentialite" className="hover:underline">
+            Confidentialité
+          </Link>
+          <Link href={`/${store.slug}/signaler`} className="hover:underline">
+            Signaler cette entreprise
+          </Link>
+        </span>
       </div>
     </footer>
   );

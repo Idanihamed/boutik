@@ -61,6 +61,17 @@ function CustomerRegisterForm() {
           />
         </Field>
         {error && <Alert>{error}</Alert>}
+        <p className="text-center text-xs text-slate-500">
+          En créant un compte, vous acceptez les{' '}
+          <Link href="/conditions" className="underline">
+            conditions d’utilisation
+          </Link>{' '}
+          et la{' '}
+          <Link href="/confidentialite" className="underline">
+            politique de confidentialité
+          </Link>
+          .
+        </p>
         <Button type="submit" className="w-full" loading={busy}>
           Créer mon compte
         </Button>

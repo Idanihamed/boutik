@@ -8,7 +8,20 @@ import { Button } from './ui';
 
 // Pages de la plateforme elle-même. Toute autre adresse est la vitrine d'une entreprise, qui a son
 // propre en-tête (StoreHeader) : celui de Boutik s'y effacerait pour laisser la place à l'entreprise.
-const PLATFORM_PATHS = ['/connexion', '/inscription', '/creer-un-compte', '/espace', '/plateforme'];
+const PLATFORM_PATHS = [
+  '/connexion',
+  '/inscription',
+  '/creer-un-compte',
+  '/espace',
+  '/plateforme',
+  '/conditions',
+  '/confidentialite',
+  '/mentions-legales',
+  '/entreprises',
+  '/mes-commandes',
+  '/mot-de-passe-oublie',
+  '/reinitialiser-mot-de-passe',
+];
 
 export function Header() {
   const { user, loading, logout } = useSession();

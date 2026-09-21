@@ -59,4 +59,12 @@ export const RESERVED_SLUGS = new Set([
   'robots',
   'favicon',
   'manifest',
+  'conditions',
+  'confidentialite',
+  'mentions-legales',
+  'entreprises',
+  'annuaire',
+  'mes-commandes',
+  'mot-de-passe-oublie',
+  'reinitialiser-mot-de-passe',
 ]);

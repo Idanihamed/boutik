@@ -38,6 +38,15 @@ export default function HomePage() {
           </li>
         ))}
       </ul>
+      <p className="text-xs text-slate-500">
+        <Link href="/conditions" className="hover:underline">
+          Conditions d’utilisation
+        </Link>
+        {' · '}
+        <Link href="/confidentialite" className="hover:underline">
+          Confidentialité
+        </Link>
+      </p>
     </div>
   );
 }
