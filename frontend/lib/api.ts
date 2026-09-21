@@ -1,5 +1,7 @@
 import type {
   AuthUser,
+  Boutique,
+  BoutiqueInput,
   Brand,
   BusinessDetail,
   BusinessStatus,
@@ -273,3 +275,11 @@ export const createTeamMember = (input: TeamMemberInput & { password: string }) 
 export const updateTeamMember = (id: string, input: Partial<TeamMemberInput>) =>
   request<TeamMember>(`/admin/users/${id}`, send('PATCH', input));
 export const deleteTeamMember = (id: string) => request(`/admin/users/${id}`, send('DELETE'));
+
+// ---------- Boutiques physiques ----------
+
+export const listBoutiques = () => request<Boutique[]>('/admin/boutiques');
+export const createBoutique = (input: BoutiqueInput) => request<Boutique>('/admin/boutiques', send('POST', input));
+export const updateBoutique = (id: string, input: Partial<BoutiqueInput>) =>
+  request<Boutique>(`/admin/boutiques/${id}`, send('PATCH', input));
+export const deleteBoutique = (id: string) => request(`/admin/boutiques/${id}`, send('DELETE'));

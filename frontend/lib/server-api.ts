@@ -1,4 +1,4 @@
-import type { ActivePromotion, Paginated, Product, PublicCategory, Storefront } from './types';
+import type { ActivePromotion, Boutique, Paginated, Product, PublicCategory, Storefront } from './types';
 
 // Appels faits CÔTÉ SERVEUR (rendu des pages publiques, pour le référencement et le partage) :
 // directs vers l'API, sans passer par le relais /api du navigateur.
@@ -39,3 +39,5 @@ export function getProducts(
 
 export const getProduct = (slug: string, productSlug: string) =>
   storefrontGet<{ product: Product; similarProducts: Product[] }>(slug, `/products/${encodeURIComponent(productSlug)}`);
+
+export const getBoutiques = (slug: string) => storefrontGet<Boutique[]>(slug, '/boutiques');

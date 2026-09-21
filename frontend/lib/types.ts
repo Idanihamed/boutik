@@ -339,3 +339,32 @@ export interface TeamMemberInput {
   password?: string;
   isActive?: boolean;
 }
+
+// ---------- Boutiques physiques ----------
+
+export interface Boutique {
+  id: string;
+  name: string;
+  slug: string;
+  address: string;
+  phone: string | null;
+  whatsapp: string | null;
+  hours: string | null;
+  description: string | null;
+  googleMapsUrl: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  images: { id: string; url: string; alt: string | null; isMain: boolean }[];
+}
+
+export interface BoutiqueInput {
+  name: string;
+  address: string;
+  phone?: string;
+  whatsapp?: string;
+  hours?: string;
+  description?: string;
+  googleMapsUrl?: string;
+  isActive: boolean;
+  images: { url: string; isMain: boolean; sortOrder: number }[];
+}
