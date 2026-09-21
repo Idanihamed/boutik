@@ -380,3 +380,13 @@ export interface AppNotification {
   virtual: boolean;
   createdAt: string;
 }
+
+// ---------- Annuaire public ----------
+
+export interface DirectoryEntry {
+  name: string;
+  slug: string;
+  logo: string | null;
+  description: string | null;
+  country: string;
+}

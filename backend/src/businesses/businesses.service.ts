@@ -8,6 +8,7 @@ import { DEFAULT_CURRENCY_BY_COUNTRY, RESERVED_SLUGS } from '../common/countries
 import { OWNER_ROLE } from '../common/roles';
 import { escapeHtml } from '../common/utils/escape-html.util';
 import { toSlug } from '../common/utils/slug.util';
+import { QueryDirectoryDto } from './dto/query-directory.dto';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 
@@ -97,6 +98,45 @@ export class BusinessesService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Annuaire public : les entreprises validées qui ont au moins un produit publié (une vitrine vide
+   * n'aide personne). Seuls des champs déjà publics sur la vitrine sont exposés.
+   */
+  async listDirectory(query: QueryDirectoryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const search = query.search?.trim();
+
+    const where: Prisma.BusinessWhereInput = {
+      status: 'ACTIVE',
+      products: { some: { status: 'PUBLISHED' } },
+      ...(query.country ? { country: query.country.toUpperCase() } : {}),
+      ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.business.findMany({
+        where,
+        select: { name: true, slug: true, logo: true, description: true, country: true, createdAt: true },
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.business.count({ where }),
+    ]);
+
+    return {
+      data: items.map((b) => ({
+        name: b.name,
+        slug: b.slug,
+        logo: b.logo,
+        description: b.description && b.description.length > 160 ? `${b.description.slice(0, 157)}…` : b.description,
+        country: b.country,
+      })),
+      meta: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+    };
   }
 
   /** Vitrine publique : identité de l'entreprise et réseaux, sans aucune donnée sensible. */

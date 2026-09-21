@@ -1,4 +1,4 @@
-import type { ActivePromotion, Boutique, Paginated, Product, PublicCategory, Storefront } from './types';
+import type { ActivePromotion, Boutique, DirectoryEntry, Paginated, Product, PublicCategory, Storefront } from './types';
 
 // Appels faits CÔTÉ SERVEUR (rendu des pages publiques, pour le référencement et le partage) :
 // directs vers l'API, sans passer par le relais /api du navigateur.
@@ -41,3 +41,19 @@ export const getProduct = (slug: string, productSlug: string) =>
   storefrontGet<{ product: Product; similarProducts: Product[] }>(slug, `/products/${encodeURIComponent(productSlug)}`);
 
 export const getBoutiques = (slug: string) => storefrontGet<Boutique[]>(slug, '/boutiques');
+
+/** Annuaire des entreprises (public). Renvoie une liste vide si l'API ne répond pas : la page reste affichable. */
+export async function getDirectory(params: { search?: string; country?: string; page?: number; limit?: number }) {
+  const query = new URLSearchParams();
+  if (params.search) query.set('search', params.search);
+  if (params.country) query.set('country', params.country);
+  query.set('page', String(params.page ?? 1));
+  query.set('limit', String(params.limit ?? 12));
+  try {
+    const res = await fetch(`${BACKEND}/api/directory?${query}`, { next: { revalidate: REVALIDATE_SECONDS } });
+    if (!res.ok) throw new Error(String(res.status));
+    return (await res.json()) as Paginated<DirectoryEntry>;
+  } catch {
+    return { data: [], meta: { page: 1, limit: params.limit ?? 12, total: 0, totalPages: 1 } } as Paginated<DirectoryEntry>;
+  }
+}

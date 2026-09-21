@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -6,6 +6,7 @@ import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { currentBusinessId } from '../tenancy/tenant-context';
 import { BusinessesService } from './businesses.service';
+import { QueryDirectoryDto } from './dto/query-directory.dto';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 
@@ -21,6 +22,15 @@ export class BusinessesController {
   @Post('businesses/register')
   register(@Body() dto: RegisterBusinessDto) {
     return this.businessesService.register(dto);
+  }
+
+  // Annuaire public des entreprises validées (page « Découvrir les boutiques » et plan du site).
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @Get('directory')
+  directory(@Query() query: QueryDirectoryDto) {
+    return this.businessesService.listDirectory(query);
   }
 
   // Atteinte via /api/b/:slug (le middleware de slug réécrit l'URL en /api/storefront et fixe

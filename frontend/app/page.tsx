@@ -1,6 +1,13 @@
 import Link from 'next/link';
+import { ShopCard } from '../components/ShopCard';
+import { getDirectory } from '../lib/server-api';
 
-export default function HomePage() {
+// Les boutiques à découvrir se rafraîchissent chaque minute, sans redéploiement.
+export const revalidate = 60;
+
+export default async function HomePage() {
+  const shops = await getDirectory({ limit: 6 });
+
   return (
     <div className="space-y-10 py-6 text-center sm:py-12">
       <div className="space-y-4">
@@ -25,6 +32,12 @@ export default function HomePage() {
         >
           Se connecter
         </Link>
+        <Link
+          href="/entreprises"
+          className="w-full rounded-lg px-6 py-3 text-base font-medium text-brand-700 hover:bg-brand-50 sm:w-auto"
+        >
+          Découvrir les boutiques
+        </Link>
       </div>
       <ul className="mx-auto grid max-w-3xl gap-4 text-left sm:grid-cols-3">
         {[
@@ -38,6 +51,23 @@ export default function HomePage() {
           </li>
         ))}
       </ul>
+      {shops.data.length > 0 && (
+        <section className="mx-auto max-w-3xl space-y-4 text-left">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-xl font-semibold text-slate-900">Boutiques à découvrir</h2>
+            <Link href="/entreprises" className="text-sm font-medium text-brand-700 hover:underline">
+              Tout voir
+            </Link>
+          </div>
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {shops.data.map((shop) => (
+              <li key={shop.slug}>
+                <ShopCard shop={shop} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <p className="text-xs text-slate-500">
         <Link href="/conditions" className="hover:underline">
           Conditions d’utilisation
