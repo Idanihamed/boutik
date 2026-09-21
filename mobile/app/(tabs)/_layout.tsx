@@ -1,5 +1,6 @@
 import { Redirect, Tabs } from 'expo-router';
 import { Text } from 'react-native';
+import { BellButton } from '../../components/BellButton';
 import { Loader } from '../../components/ui';
 import { COLORS } from '../../lib/labels';
 import { useSession } from '../../lib/session';
@@ -18,6 +19,7 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerRight: () => <BellButton />,
         headerTintColor: COLORS.text,
         headerStyle: { backgroundColor: COLORS.card },
         tabBarActiveTintColor: COLORS.brand,
@@ -29,6 +31,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="commandes"
         options={{ title: 'Commandes', tabBarIcon: icon('📦'), href: can('orders:read') ? undefined : null }}
+      />
+      <Tabs.Screen
+        name="produits"
+        options={{ title: 'Produits', tabBarIcon: icon('🛍️'), href: can('products:read') ? undefined : null }}
       />
       <Tabs.Screen
         name="messages"

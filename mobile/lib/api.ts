@@ -3,11 +3,13 @@ import type {
   AdminMessage,
   AdminMessageRow,
   AdminOrder,
+  AppNotification,
   AuthUser,
   DashboardStats,
   MessageStatus,
   OrderStatus,
   Paginated,
+  Product,
 } from './types';
 
 // Adresse de l'API : par défaut celle de la version en ligne. Pour tester contre un serveur local,
@@ -54,7 +56,7 @@ async function rawFetch(path: string, options: RequestInit, token: string | null
       signal: controller.signal,
       headers: {
         'X-Client': 'mobile',
-        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers ?? {}),
       },
@@ -157,3 +159,42 @@ export const setMessageStatus = (id: string, status: MessageStatus) =>
   request<AdminMessage>(`/admin/messages/${id}/status`, send('PATCH', { status }));
 export const replyToMessage = (id: string, reply: string) =>
   request<AdminMessage>(`/admin/messages/${id}/reply`, send('PATCH', { reply }));
+
+// ---------- Produits ----------
+
+/** Adresse complète d'une image : les photos stockées sur le serveur sont données en chemin relatif. */
+export const imageUrl = (url: string) => (url.startsWith('/') ? `${API_URL.replace(/\/api$/, '')}${url}` : url);
+
+export function listProducts(params: { search?: string; page?: number }) {
+  const query = new URLSearchParams();
+  if (params.search) query.set('search', params.search);
+  query.set('page', String(params.page ?? 1));
+  query.set('limit', '20');
+  return request<Paginated<Product>>(`/admin/products?${query}`);
+}
+export const getProduct = (id: string) => request<Product>(`/admin/products/${id}`);
+export const updateProductPrices = (id: string, input: { price: number; promoPrice: number | null }) =>
+  request<Product>(`/admin/products/${id}`, send('PATCH', input));
+export const setProductImages = (id: string, images: { url: string; isMain: boolean; sortOrder: number }[]) =>
+  request<Product>(`/admin/products/${id}`, send('PATCH', { images }));
+export const adjustProductStock = (id: string, delta: number) =>
+  request<Product>(`/admin/products/${id}/stock`, send('PATCH', { delta }));
+export const setProductPublication = (id: string, action: 'publish' | 'unpublish') =>
+  request<Product>(`/admin/products/${id}/${action}`, send('PATCH'));
+
+/** Envoie une photo (prise ou choisie sur le téléphone) et renvoie son adresse. */
+export async function uploadImage(file: { uri: string; name: string; type: string }): Promise<string> {
+  const form = new FormData();
+  // React Native accepte cet objet {uri, name, type} à la place d'un fichier.
+  form.append('file', file as unknown as Blob);
+  const res = await request<{ url: string }>('/admin/media/upload', { method: 'POST', body: form });
+  return res.url;
+}
+
+// ---------- Notifications ----------
+
+export const listNotifications = () => request<AppNotification[]>('/admin/notifications');
+export const getUnreadCount = () => request<number>('/admin/notifications/unread-count');
+export const markNotificationRead = (id: string) =>
+  request(`/admin/notifications/${encodeURIComponent(id)}/read`, send('PATCH'));
+export const markAllNotificationsRead = () => request('/admin/notifications/read-all', send('PATCH'));

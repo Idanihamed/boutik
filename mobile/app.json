@@ -25,7 +25,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Boutik accède à vos photos pour illustrer vos produits.",
+          "cameraPermission": "Boutik utilise l'appareil photo pour photographier vos produits."
+        }
+      ]
     ],
     "scheme": "boutik"
   }

@@ -2,6 +2,8 @@
 
 export type BusinessStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED' | 'BANNED';
 export type OrderStatus = 'EN_ATTENTE' | 'CONFIRMEE' | 'EN_PREPARATION' | 'EXPEDIEE' | 'LIVREE' | 'ANNULEE';
+export type StockStatus = 'DISPONIBLE' | 'STOCK_FAIBLE' | 'RUPTURE';
+export type ProductStatus = 'DRAFT' | 'PUBLISHED';
 export type MessageStatus = 'NOUVEAU' | 'LU' | 'TRAITE';
 
 export interface AuthUser {
@@ -59,4 +61,30 @@ export interface AdminMessage extends AdminMessageRow {
   replyVoiceUrl: string | null;
   replyAttachmentUrl: string | null;
   repliedAt: string | null;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  price: number;
+  promoPrice: number | null;
+  effectivePrice: number;
+  onSale: boolean;
+  stock: number;
+  lowStockThreshold: number;
+  stockStatus: StockStatus;
+  status: ProductStatus;
+  category: { id: string; name: string } | null;
+  images: { url: string; alt: string | null; isMain: boolean }[];
+}
+
+export interface AppNotification {
+  id: string;
+  type: 'CONTACT_MESSAGE' | 'LOW_STOCK' | 'OUT_OF_STOCK' | 'PROMOTION_EXPIRING' | 'NEW_ORDER';
+  message: string;
+  link: string | null;
+  isRead: boolean;
+  virtual: boolean;
+  createdAt: string;
 }

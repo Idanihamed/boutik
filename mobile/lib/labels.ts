@@ -1,4 +1,4 @@
-import type { MessageStatus, OrderStatus } from './types';
+import type { MessageStatus, OrderStatus, StockStatus } from './types';
 
 export const COLORS = {
   brand: '#0f766e',
@@ -83,3 +83,15 @@ export function contactLinks(contact: string): { url: string; label: string }[] 
   }
   return links;
 }
+
+export const STOCK_LABELS: Record<StockStatus, string> = {
+  DISPONIBLE: 'En stock',
+  STOCK_FAIBLE: 'Stock faible',
+  RUPTURE: 'Rupture',
+};
+
+export const STOCK_COLORS: Record<StockStatus, { bg: string; fg: string }> = {
+  DISPONIBLE: { bg: '#d1fae5', fg: '#065f46' },
+  STOCK_FAIBLE: { bg: '#fef3c7', fg: '#92400e' },
+  RUPTURE: { bg: '#fee2e2', fg: '#991b1b' },
+};
