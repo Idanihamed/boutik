@@ -110,8 +110,28 @@ export default function OrderDetailScreen() {
             <Text style={styles.value}>{formatPrice(item.subtotal, currency)}</Text>
           </View>
         ))}
+        {(order.discountAmount > 0 || order.shippingFee > 0) && (
+          <View style={[styles.itemRow, styles.total]}>
+            <Text style={styles.value}>Sous-total</Text>
+            <Text style={styles.value}>
+              {formatPrice(order.totalAmount + order.discountAmount - order.shippingFee, currency)}
+            </Text>
+          </View>
+        )}
+        {order.discountAmount > 0 && (
+          <View style={styles.itemRow}>
+            <Text style={[styles.value, { color: '#047857' }]}>Code {order.promoCode}</Text>
+            <Text style={[styles.value, { color: '#047857' }]}>−{formatPrice(order.discountAmount, currency)}</Text>
+          </View>
+        )}
+        {order.shippingFee > 0 && (
+          <View style={styles.itemRow}>
+            <Text style={styles.value}>Livraison</Text>
+            <Text style={styles.value}>{formatPrice(order.shippingFee, currency)}</Text>
+          </View>
+        )}
         <View style={[styles.itemRow, styles.total]}>
-          <Text style={styles.totalText}>Total</Text>
+          <Text style={styles.totalText}>Total à encaisser</Text>
           <Text style={styles.totalText}>{formatPrice(order.totalAmount, currency)}</Text>
         </View>
       </Card>

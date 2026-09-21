@@ -37,6 +37,9 @@ export interface AdminOrder {
   notes: string | null;
   status: OrderStatus;
   totalAmount: number;
+  discountAmount: number;
+  shippingFee: number;
+  promoCode: string | null;
   items: { productName: string; unitPrice: number; quantity: number; subtotal: number }[];
   boutique: { name: string; address: string } | null;
   createdAt: string;

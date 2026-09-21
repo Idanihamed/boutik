@@ -183,6 +183,8 @@ export interface Storefront {
     xUrl: string | null;
     heroImage1: string | null;
     heroImage2: string | null;
+    shippingFee?: number;
+    freeShippingThreshold?: number | null;
   } | null;
 }
 
@@ -209,6 +211,9 @@ export interface OrderTracking {
   reference: string;
   status: OrderStatus;
   totalAmount: number;
+  discountAmount: number;
+  shippingFee: number;
+  promoCode: string | null;
   customerAddress: string | null;
   createdAt: string;
   items: { productName: string; unitPrice: number; quantity: number; subtotal: number }[];
@@ -237,6 +242,9 @@ export interface AdminOrder {
   notes: string | null;
   status: OrderStatus;
   totalAmount: number;
+  discountAmount: number;
+  shippingFee: number;
+  promoCode: string | null;
   items: { productName: string; unitPrice: number; quantity: number; subtotal: number }[];
   boutique: { name: string; address: string } | null;
   createdAt: string;
@@ -389,4 +397,47 @@ export interface DirectoryEntry {
   logo: string | null;
   description: string | null;
   country: string;
+}
+
+// ---------- Livraison et codes promo ----------
+
+export interface ShippingSettings {
+  shippingFee: number;
+  freeShippingThreshold: number | null;
+}
+
+export type PromoCodeType = 'PERCENTAGE' | 'FIXED_AMOUNT';
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  type: PromoCodeType;
+  value: number;
+  minOrderAmount: number | null;
+  maxUses: number | null;
+  usedCount: number;
+  startsAt: string | null;
+  endsAt: string | null;
+  isActive: boolean;
+}
+
+export interface PromoCodeInput {
+  code: string;
+  type: PromoCodeType;
+  value: number;
+  minOrderAmount: number | null;
+  maxUses: number | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  isActive: boolean;
+}
+
+/** Aperçu d'un panier calculé par le serveur : ce qui sera réellement facturé. */
+export interface OrderQuote {
+  subtotal: number;
+  discount: number;
+  shippingFee: number;
+  total: number;
+  freeShippingThreshold: number | null;
+  promoCode: { code: string; valid: boolean; message: string | null } | null;
 }

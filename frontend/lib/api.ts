@@ -18,6 +18,9 @@ import type {
   OrderStatus,
   Paginated,
   PlatformBusinessRow,
+  PromoCode,
+  PromoCodeInput,
+  ShippingSettings,
   Product,
   ProductInput,
   ProductStatus,
@@ -292,3 +295,14 @@ export const getUnreadCount = () => request<number>('/admin/notifications/unread
 export const markNotificationRead = (id: string) =>
   request(`/admin/notifications/${encodeURIComponent(id)}/read`, send('PATCH'));
 export const markAllNotificationsRead = () => request('/admin/notifications/read-all', send('PATCH'));
+
+// ---------- Livraison et codes promo ----------
+
+export const getShipping = () => request<ShippingSettings>('/admin/settings');
+export const updateShipping = (input: ShippingSettings) => request<ShippingSettings>('/admin/settings', send('PATCH', input));
+
+export const listPromoCodes = () => request<PromoCode[]>('/admin/promo-codes');
+export const createPromoCode = (input: PromoCodeInput) => request<PromoCode>('/admin/promo-codes', send('POST', input));
+export const updatePromoCode = (id: string, input: Partial<PromoCodeInput>) =>
+  request<PromoCode>(`/admin/promo-codes/${id}`, send('PATCH', input));
+export const deletePromoCode = (id: string) => request(`/admin/promo-codes/${id}`, send('DELETE'));

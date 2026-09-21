@@ -265,3 +265,8 @@ export const ROLE_DESCRIPTIONS: Record<string, string> = {
   GESTIONNAIRE: 'Produits, promotions, commandes et messages. Pas d’accès à l’équipe ni aux paramètres.',
   EDITEUR: 'Crée et modifie les produits. Pas de commandes, de promotions ni de paramètres.',
 };
+
+export const PROMO_CODE_TYPE_LABELS = {
+  PERCENTAGE: 'Pourcentage de réduction',
+  FIXED_AMOUNT: 'Montant retiré du total',
+} as const;

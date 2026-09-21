@@ -8,6 +8,8 @@ import { Button, Card, Spinner } from '../../../components/ui';
 export default function CartPage() {
   const { store, items, total, ready, setQuantity, remove } = useStore();
   const base = `/${store.slug}`;
+  const shippingFee = store.settings?.shippingFee ?? 0;
+  const threshold = store.settings?.freeShippingThreshold ?? null;
 
   if (!ready) return <Spinner />;
 
@@ -78,7 +80,13 @@ export default function CartPage() {
           <span className="text-slate-700">Total</span>
           <span className="text-2xl font-bold text-slate-900">{formatPrice(total, store.currency)}</span>
         </div>
-        <p className="text-xs text-slate-500">Le prix définitif est confirmé lors de la commande.</p>
+        {shippingFee > 0 && (
+          <p className="text-xs text-slate-600">
+            Livraison à domicile : {formatPrice(shippingFee, store.currency)}
+            {threshold !== null ? ` (offerte dès ${formatPrice(threshold, store.currency)} d’achats)` : ''}. Retrait en boutique gratuit.
+          </p>
+        )}
+        <p className="text-xs text-slate-500">Le prix définitif, avec livraison et code promo, est confirmé à l’étape suivante.</p>
         <Link href={`${base}/commande`}>
           <Button className="w-full">Passer la commande</Button>
         </Link>

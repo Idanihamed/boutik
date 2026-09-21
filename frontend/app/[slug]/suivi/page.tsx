@@ -125,10 +125,30 @@ export default function TrackingPage() {
               </li>
             ))}
           </ul>
-          <p className="flex justify-between border-t border-slate-200 pt-3 font-bold text-slate-900">
-            <span>Total</span>
-            <span>{formatPrice(order.totalAmount, store.currency)}</span>
-          </p>
+          <dl className="space-y-1 border-t border-slate-200 pt-3 text-sm">
+            {(order.discountAmount > 0 || order.shippingFee > 0) && (
+              <div className="flex justify-between text-slate-600">
+                <dt>Sous-total</dt>
+                <dd>{formatPrice(order.totalAmount + order.discountAmount - order.shippingFee, store.currency)}</dd>
+              </div>
+            )}
+            {order.discountAmount > 0 && (
+              <div className="flex justify-between text-emerald-700">
+                <dt>Code {order.promoCode}</dt>
+                <dd>−{formatPrice(order.discountAmount, store.currency)}</dd>
+              </div>
+            )}
+            {order.shippingFee > 0 && (
+              <div className="flex justify-between text-slate-600">
+                <dt>Livraison</dt>
+                <dd>{formatPrice(order.shippingFee, store.currency)}</dd>
+              </div>
+            )}
+            <div className="flex justify-between text-base font-bold text-slate-900">
+              <dt>Total</dt>
+              <dd>{formatPrice(order.totalAmount, store.currency)}</dd>
+            </div>
+          </dl>
         </Card>
       )}
 

@@ -5,6 +5,7 @@ import { ApiError, getSettings, updateSettings } from '../../../lib/api';
 import { useCan } from '../../../lib/session';
 import type { Settings } from '../../../lib/types';
 import { ImageUploader } from '../../../components/ImageUploader';
+import { ShippingCard } from '../../../components/ShippingCard';
 import { Alert, Button, Card, Field, Input, Spinner } from '../../../components/ui';
 
 const LINKS: { key: keyof Settings; label: string; placeholder: string }[] = [
@@ -120,6 +121,8 @@ export default function SettingsPage() {
           </Button>
         )}
       </form>
+
+      <ShippingCard canEdit={canEdit} />
     </div>
   );
 }

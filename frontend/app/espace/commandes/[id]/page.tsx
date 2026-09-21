@@ -160,10 +160,30 @@ export default function OrderDetailPage() {
             </li>
           ))}
         </ul>
-        <p className="flex justify-between border-t border-slate-200 pt-3 text-lg font-bold text-slate-900">
-          <span>Total</span>
-          <span>{formatPrice(order.totalAmount, currency)}</span>
-        </p>
+        <dl className="space-y-1 border-t border-slate-200 pt-3 text-sm">
+          {(order.discountAmount > 0 || order.shippingFee > 0) && (
+            <div className="flex justify-between text-slate-600">
+              <dt>Sous-total</dt>
+              <dd>{formatPrice(order.totalAmount + order.discountAmount - order.shippingFee, currency)}</dd>
+            </div>
+          )}
+          {order.discountAmount > 0 && (
+            <div className="flex justify-between text-emerald-700">
+              <dt>Code promo {order.promoCode}</dt>
+              <dd>−{formatPrice(order.discountAmount, currency)}</dd>
+            </div>
+          )}
+          {order.shippingFee > 0 && (
+            <div className="flex justify-between text-slate-600">
+              <dt>Livraison</dt>
+              <dd>{formatPrice(order.shippingFee, currency)}</dd>
+            </div>
+          )}
+          <div className="flex justify-between text-lg font-bold text-slate-900">
+            <dt>Total à encaisser</dt>
+            <dd>{formatPrice(order.totalAmount, currency)}</dd>
+          </div>
+        </dl>
       </Card>
 
       <ConfirmDialog

@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import type { Storefront } from '../../lib/types';
 
-const SOCIALS: { key: keyof NonNullable<Storefront['settings']>; label: string }[] = [
+type SocialKey = Exclude<keyof NonNullable<Storefront['settings']>, 'shippingFee' | 'freeShippingThreshold'>;
+
+const SOCIALS: { key: SocialKey; label: string }[] = [
   { key: 'facebookUrl', label: 'Facebook' },
   { key: 'instagramUrl', label: 'Instagram' },
   { key: 'tiktokUrl', label: 'TikTok' },
