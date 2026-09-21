@@ -1,21 +1,12 @@
-import { router, useFocusEffect, type Href } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Button, Empty, ErrorBox, Loader } from '../components/ui';
 import { ApiError, listNotifications, markAllNotificationsRead, markNotificationRead } from '../lib/api';
 import { COLORS, formatDate } from '../lib/labels';
+import { screenFor } from '../lib/links';
 import { notifyNotificationsChanged } from '../lib/notification-events';
 import type { AppNotification } from '../lib/types';
-
-/** Convertit le lien enregistré par le serveur (adresse du site) en écran de l'application. */
-function screenFor(link: string | null): Href | null {
-  if (!link) return null;
-  if (link === '/espace/commandes') return '/(tabs)/commandes';
-  if (link === '/espace/messages') return '/(tabs)/messages';
-  const product = /^\/espace\/produits\/([\w-]+)$/.exec(link);
-  if (product) return `/produit/${product[1]}`;
-  return null;
-}
 
 export default function NotificationsScreen() {
   const [items, setItems] = useState<AppNotification[] | null>(null);

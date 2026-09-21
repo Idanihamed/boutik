@@ -32,6 +32,12 @@
           "photosPermission": "Boutik accède à vos photos pour illustrer vos produits.",
           "cameraPermission": "Boutik utilise l'appareil photo pour photographier vos produits."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#0f766e"
+        }
       ]
     ],
     "scheme": "boutik"

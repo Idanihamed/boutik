@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { ApiError, fetchMe, hasStoredSession, login as apiLogin, logout as apiLogout, setSessionLostHandler } from './api';
+import { registerForPush, unregisterFromPush } from './push';
 import type { AuthUser } from './types';
 
 interface SessionValue {
@@ -26,7 +27,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       try {
         if (await hasStoredSession()) {
           const me = await fetchMe();
-          if (active && me.businessId) setUser(me);
+          if (active && me.businessId) {
+            setUser(me);
+            void registerForPush();
+          }
         }
       } catch {
         // Session expirée ou serveur injoignable : retour à l'écran de connexion.
@@ -52,9 +56,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       throw new ApiError(NOT_A_BUSINESS_ACCOUNT, 403);
     }
     setUser(me);
+    void registerForPush();
   }, []);
 
   const logout = useCallback(async () => {
+    await unregisterFromPush();
     await apiLogout();
     setUser(null);
   }, []);

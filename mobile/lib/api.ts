@@ -96,7 +96,7 @@ async function refreshSession(): Promise<boolean> {
   return true;
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   let res = await rawFetch(path, options, await SecureStore.getItemAsync(ACCESS_KEY));
 
   if (res.status === 401 && !path.startsWith('/auth/')) {

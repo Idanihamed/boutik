@@ -1,9 +1,24 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
+import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../lib/labels';
+import { screenFor } from '../lib/links';
+import { listenToNotificationTaps, setupNotificationDisplay } from '../lib/push';
 import { SessionProvider } from '../lib/session';
 
 export default function RootLayout() {
+  useEffect(() => {
+    void setupNotificationDisplay();
+    let stop: (() => void) | undefined;
+    void listenToNotificationTaps((link) => {
+      const target = screenFor(link);
+      if (target) router.navigate(target);
+    }).then((unsubscribe) => {
+      stop = unsubscribe;
+    });
+    return () => stop?.();
+  }, []);
+
   return (
     <SessionProvider>
       <StatusBar style="dark" />
