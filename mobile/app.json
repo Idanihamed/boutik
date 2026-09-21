@@ -18,7 +18,10 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.boutik.app"
+      "package": "com.boutik.app",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -40,6 +43,13 @@
         }
       ]
     ],
-    "scheme": "boutik"
+    "scheme": "boutik",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8bb16daa-d45f-493f-86c7-6a6c314d5ab9"
+      }
+    },
+    "owner": "hamedidani"
   }
 }
