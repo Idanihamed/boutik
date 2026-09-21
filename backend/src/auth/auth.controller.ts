@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
+import { isMobileClient } from './client-type';
 import { clearAuthCookies, REFRESH_TOKEN_COOKIE, setAuthCookies } from './cookies';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -32,8 +33,10 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.authService.login(dto);
+    // Application mobile (en-tête X-Client: mobile) : jetons dans le corps, aucun cookie posé.
+    if (isMobileClient(req)) return { user, accessToken, refreshToken };
     // Les tokens ne sont plus renvoyés dans le corps JSON (uniquement posés en cookies
     // httpOnly) : un script XSS qui lirait cette réponse ne doit rien pouvoir en tirer.
     setAuthCookies(res, this.config, { accessToken, refreshToken });
@@ -56,12 +59,18 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
-    if (!refreshToken) {
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Body('refreshToken') bodyRefreshToken?: string,
+  ) {
+    const mobile = isMobileClient(req);
+    const refreshToken = mobile ? bodyRefreshToken : req.cookies?.[REFRESH_TOKEN_COOKIE];
+    if (!refreshToken || typeof refreshToken !== 'string') {
       throw new ForbiddenException('Aucune session à renouveler.');
     }
     const tokens = await this.authService.refresh(refreshToken);
+    if (mobile) return tokens;
     setAuthCookies(res, this.config, tokens);
     return { ok: true };
   }
@@ -69,9 +78,13 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('logout')
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
-    if (refreshToken) {
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Body('refreshToken') bodyRefreshToken?: string,
+  ) {
+    const refreshToken = isMobileClient(req) ? bodyRefreshToken : req.cookies?.[REFRESH_TOKEN_COOKIE];
+    if (refreshToken && typeof refreshToken === 'string') {
       await this.authService.logout(refreshToken);
     }
     clearAuthCookies(res, this.config);
