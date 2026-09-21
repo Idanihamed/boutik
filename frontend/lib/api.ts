@@ -1,4 +1,5 @@
 import type {
+  AppNotification,
   AuthUser,
   Boutique,
   BoutiqueInput,
@@ -283,3 +284,11 @@ export const createBoutique = (input: BoutiqueInput) => request<Boutique>('/admi
 export const updateBoutique = (id: string, input: Partial<BoutiqueInput>) =>
   request<Boutique>(`/admin/boutiques/${id}`, send('PATCH', input));
 export const deleteBoutique = (id: string) => request(`/admin/boutiques/${id}`, send('DELETE'));
+
+// ---------- Notifications ----------
+
+export const listNotifications = () => request<AppNotification[]>('/admin/notifications');
+export const getUnreadCount = () => request<number>('/admin/notifications/unread-count');
+export const markNotificationRead = (id: string) =>
+  request(`/admin/notifications/${encodeURIComponent(id)}/read`, send('PATCH'));
+export const markAllNotificationsRead = () => request('/admin/notifications/read-all', send('PATCH'));

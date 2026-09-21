@@ -62,7 +62,7 @@ export class NotificationsService {
       id: `${VIRTUAL_ID_PREFIX}${promo.id}`,
       type: 'PROMOTION_EXPIRING' as const,
       message: `La promotion « ${promo.name} » expire le ${promo.endsAt.toLocaleDateString('fr-FR')}.`,
-      link: `/admin/promotions/${promo.id}`,
+      link: '/espace/promotions',
       isRead: false,
       virtual: true,
       createdAt: promo.endsAt,

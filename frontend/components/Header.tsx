@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { homeFor, useSession } from '../lib/session';
+import { NotificationBell } from './NotificationBell';
 import { Button } from './ui';
 
 // Pages de la plateforme elle-même. Toute autre adresse est la vitrine d'une entreprise, qui a son
@@ -31,6 +32,7 @@ export function Header() {
         <nav className="flex items-center gap-2 text-sm">
           {loading ? null : user ? (
             <>
+              {user.businessId && pathname.startsWith('/espace') && <NotificationBell />}
               <Link href={homeFor(user)} className="hidden rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 sm:inline">
                 {user.name}
               </Link>

@@ -9,6 +9,7 @@ import { generateReference } from '../common/utils/reference.util';
 import { isEmailLike } from '../common/utils/is-email.util';
 import { escapeHtml } from '../common/utils/escape-html.util';
 import { formatMoney } from '../common/utils/money.util';
+import { computeStockStatus } from '../common/utils/stock-status.util';
 import { currentBusinessId } from '../tenancy/tenant-context';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QueryOrdersDto } from './dto/query-orders.dto';
@@ -158,6 +159,29 @@ export class OrdersService {
       `Nouvelle commande de ${dto.customerName} (${formatMoney(totalAmount, business.currency)})`,
       '/espace/commandes',
     );
+
+    // Une vente peut faire passer un produit en stock faible ou en rupture : le responsable doit
+    // en être alerté comme lors d'une modification manuelle du stock (voir
+    // ProductsService.notifyIfStockWorsened), sinon il ne le découvre qu'au prochain client déçu.
+    for (const line of lines) {
+      const product = productById.get(line.productId)!;
+      const before = computeStockStatus(product.stock, product.lowStockThreshold);
+      const after = computeStockStatus(product.stock - line.quantity, product.lowStockThreshold);
+      if (after === before) continue;
+      if (after === 'RUPTURE') {
+        await this.notificationsService.create(
+          'OUT_OF_STOCK',
+          `Le produit « ${product.name} » est en rupture de stock.`,
+          `/espace/produits/${product.id}`,
+        );
+      } else if (after === 'STOCK_FAIBLE') {
+        await this.notificationsService.create(
+          'LOW_STOCK',
+          `Le produit « ${product.name} » passe en stock faible.`,
+          `/espace/produits/${product.id}`,
+        );
+      }
+    }
 
     // customerContact accepte un téléphone OU un email (voir CreateOrderDto) : pas d'envoi si
     // ce n'est manifestement pas une adresse email. No-op tant qu'aucun SMTP n'est configuré

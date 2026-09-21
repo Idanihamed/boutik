@@ -368,3 +368,15 @@ export interface BoutiqueInput {
   isActive: boolean;
   images: { url: string; isMain: boolean; sortOrder: number }[];
 }
+
+// ---------- Notifications (cloche) ----------
+
+export interface AppNotification {
+  id: string;
+  type: 'CONTACT_MESSAGE' | 'LOW_STOCK' | 'OUT_OF_STOCK' | 'PROMOTION_EXPIRING' | 'NEW_ORDER';
+  message: string;
+  link: string | null;
+  isRead: boolean;
+  virtual: boolean;
+  createdAt: string;
+}

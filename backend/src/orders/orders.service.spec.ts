@@ -15,6 +15,7 @@ function buildProduct(overrides: Partial<Record<string, unknown>> = {}) {
     price: 10000,
     promoPrice: null,
     stock: 5,
+    lowStockThreshold: 2,
     status: 'PUBLISHED',
     ...overrides,
   };
@@ -179,6 +180,30 @@ describe('OrdersService.create', () => {
     const { html } = mailService.send.mock.calls[0][0] as { html: string };
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');
+  });
+
+  describe('alertes de stock après une vente', () => {
+    const stockAlerts = () =>
+      notificationsService.create.mock.calls.filter(([type]) => type === 'OUT_OF_STOCK' || type === 'LOW_STOCK');
+
+    it('alerte « rupture » quand la vente vide le stock', async () => {
+      await service.create(buildDto({ items: [{ productId: 'prod-1', quantity: 5 }] }));
+      expect(stockAlerts()).toEqual([
+        ['OUT_OF_STOCK', 'Le produit « Produit test » est en rupture de stock.', '/espace/produits/prod-1'],
+      ]);
+    });
+
+    it('alerte « stock faible » quand la vente atteint le seuil sans vider le stock', async () => {
+      await service.create(buildDto({ items: [{ productId: 'prod-1', quantity: 3 }] })); // 5 -> 2 (seuil 2)
+      expect(stockAlerts()).toEqual([
+        ['LOW_STOCK', 'Le produit « Produit test » passe en stock faible.', '/espace/produits/prod-1'],
+      ]);
+    });
+
+    it('n’alerte pas tant que le stock reste au-dessus du seuil', async () => {
+      await service.create(buildDto({ items: [{ productId: 'prod-1', quantity: 2 }] })); // 5 -> 3
+      expect(stockAlerts()).toEqual([]);
+    });
   });
 
   it('n’envoie aucun email quand customerContact est un numéro de téléphone', async () => {
