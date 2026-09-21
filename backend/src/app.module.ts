@@ -16,6 +16,7 @@ import { PagesModule } from './pages/pages.module';
 import { ContactMessagesModule } from './contact-messages/contact-messages.module';
 import { OrdersModule } from './orders/orders.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { PushModule } from './push/push.module';
 import { MediaModule } from './media/media.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ActivityLogModule } from './activity-log/activity-log.module';
@@ -51,6 +52,7 @@ import { PlatformModule } from './platform/platform.module';
     ContactMessagesModule,
     OrdersModule,
     NotificationsModule,
+    PushModule,
     MediaModule,
     DashboardModule,
     ActivityLogModule,

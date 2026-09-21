@@ -2,6 +2,8 @@ import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nest
 import { NotificationType } from '@prisma/client';
 import { TENANT_PRISMA, TenantPrisma } from '../tenancy/tenant-prisma';
 import { PromotionsService } from '../promotions/promotions.service';
+import { PushService } from '../push/push.service';
+import { currentBusinessId } from '../tenancy/tenant-context';
 
 // Identifiants synthétiques pour les notifications "virtuelles" (calculées à la volée,
 // jamais stockées) — voir findAllAdmin().
@@ -18,6 +20,14 @@ const VIRTUAL_ID_PREFIX = 'virtual:promotion-expiring:';
  * (§27). Même faille de fond que celle corrigée sur le tableau de bord en phase 3, ici sur du
  * contenu et pas seulement des compteurs.
  */
+const PUSH_TITLE_BY_TYPE: Record<NotificationType, string> = {
+  CONTACT_MESSAGE: 'Nouveau message',
+  LOW_STOCK: 'Alerte de stock',
+  OUT_OF_STOCK: 'Alerte de stock',
+  PROMOTION_EXPIRING: 'Promotion bientôt terminée',
+  NEW_ORDER: 'Nouvelle commande',
+};
+
 const PERMISSION_BY_TYPE: Record<NotificationType, string> = {
   CONTACT_MESSAGE: 'messages:read',
   LOW_STOCK: 'products:read',
@@ -31,11 +41,25 @@ export class NotificationsService {
   constructor(
     @Inject(TENANT_PRISMA) private readonly prisma: TenantPrisma,
     private readonly promotionsService: PromotionsService,
+    private readonly pushService: PushService,
   ) {}
 
   /** Utilisé par les autres modules (messages de contact, stock produit) pour notifier. */
   async create(type: NotificationType, message: string, link?: string) {
-    return this.prisma.notification.create({ data: { type, message, link } });
+    const notification = await this.prisma.notification.create({ data: { type, message, link } });
+
+    // Même alerte sur le téléphone du personnel autorisé (sans attendre, sans jamais bloquer l'action).
+    const businessId = currentBusinessId();
+    if (businessId) {
+      void this.pushService.notifyBusiness({
+        businessId,
+        permission: PERMISSION_BY_TYPE[type],
+        title: PUSH_TITLE_BY_TYPE[type],
+        body: message,
+        link,
+      });
+    }
+    return notification;
   }
 
   /**

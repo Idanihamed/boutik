@@ -224,12 +224,29 @@ model User {
   businessId    String?
   business      Business?        @relation(fields: [businessId], references: [id], onDelete: Cascade)
   refreshTokens RefreshToken[]
+  pushTokens    PushToken[]
   reports       BusinessReport[]
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
   @@index([businessId])
   @@map("users")
+}
+
+// Téléphones du personnel qui reçoivent les alertes (commande, message, stock) même application
+// fermée. Non isolé par l'extension d'entreprise (comme User) : PushService filtre lui-même.
+model PushToken {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@index([businessId])
+  @@map("push_tokens")
 }
 
 model RefreshToken {
