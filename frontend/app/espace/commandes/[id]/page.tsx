@@ -16,6 +16,7 @@ import {
 import { useCan, useSession } from '../../../../lib/session';
 import type { AdminOrder, OrderStatus } from '../../../../lib/types';
 import { ConfirmDialog } from '../../../../components/ConfirmDialog';
+import { OrderTimeline } from '../../../../components/OrderTimeline';
 import { Alert, Button, Card, Spinner } from '../../../../components/ui';
 
 export default function OrderDetailPage() {
@@ -84,6 +85,11 @@ export default function OrderDetailPage() {
 
       {error && <Alert>{error}</Alert>}
       {notice && <Alert kind="success">{notice}</Alert>}
+
+      <Card>
+        <h2 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">Avancement</h2>
+        <OrderTimeline status={order.status} />
+      </Card>
 
       {canUpdate && (
         <Card className="space-y-3">
