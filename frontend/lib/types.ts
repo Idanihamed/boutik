@@ -441,3 +441,30 @@ export interface OrderQuote {
   freeShippingThreshold: number | null;
   promoCode: { code: string; valid: boolean; message: string | null } | null;
 }
+
+// ---------- Mes commandes (compte client) ----------
+
+export interface MyOrderRow {
+  id: string;
+  reference: string;
+  status: OrderStatus;
+  totalAmount: number;
+  itemCount: number;
+  business: { name: string; slug: string; currency: string };
+  createdAt: string;
+}
+
+export interface MyOrderDetail {
+  id: string;
+  reference: string;
+  status: OrderStatus;
+  totalAmount: number;
+  discountAmount: number;
+  shippingFee: number;
+  promoCode: string | null;
+  customerAddress: string | null;
+  boutique: { name: string; address: string } | null;
+  business: { name: string; slug: string; currency: string };
+  createdAt: string;
+  items: { productName: string; unitPrice: number; quantity: number; subtotal: number }[];
+}

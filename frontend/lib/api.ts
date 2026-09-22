@@ -13,6 +13,8 @@ import type {
   DashboardStats,
   FlaggedBusiness,
   MessageStatus,
+  MyOrderDetail,
+  MyOrderRow,
   ModerationAction,
   MyBusiness,
   OrderStatus,
@@ -306,3 +308,10 @@ export const createPromoCode = (input: PromoCodeInput) => request<PromoCode>('/a
 export const updatePromoCode = (id: string, input: Partial<PromoCodeInput>) =>
   request<PromoCode>(`/admin/promo-codes/${id}`, send('PATCH', input));
 export const deletePromoCode = (id: string) => request(`/admin/promo-codes/${id}`, send('DELETE'));
+
+// ---------- Mes commandes (compte client) ----------
+
+export function listMyOrders(page = 1) {
+  return request<Paginated<MyOrderRow>>(`/mes-commandes?page=${page}&limit=20`);
+}
+export const getMyOrder = (id: string) => request<MyOrderDetail>(`/mes-commandes/${id}`);

@@ -45,6 +45,11 @@ export function Header() {
           {loading ? null : user ? (
             <>
               {user.businessId && pathname.startsWith('/espace') && <NotificationBell />}
+              {user.role === 'CUSTOMER' && (
+                <Link href="/mes-commandes" className="whitespace-nowrap rounded-xl px-3 py-2 font-semibold text-slate-800 hover:bg-slate-100">
+                  Mes commandes
+                </Link>
+              )}
               <Link href={homeFor(user)} className="hidden rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 sm:inline">
                 {user.name}
               </Link>

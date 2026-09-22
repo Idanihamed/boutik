@@ -18,6 +18,7 @@ export function StoreHeader() {
     { href: `${base}/boutiques`, label: 'Nos boutiques' },
     { href: `${base}/contact`, label: 'Contact' },
     { href: `${base}/suivi`, label: 'Suivi de commande' },
+    ...(user?.role === 'CUSTOMER' ? [{ href: '/mes-commandes', label: 'Mes commandes' }] : []),
   ];
 
   async function handleLogout() {
