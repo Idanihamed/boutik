@@ -20,6 +20,7 @@ import type {
   OrderStatus,
   Paginated,
   PlatformBusinessRow,
+  PlatformStats,
   PromoCode,
   PromoCodeInput,
   ShippingSettings,
@@ -315,3 +316,5 @@ export function listMyOrders(page = 1) {
   return request<Paginated<MyOrderRow>>(`/mes-commandes?page=${page}&limit=20`);
 }
 export const getMyOrder = (id: string) => request<MyOrderDetail>(`/mes-commandes/${id}`);
+
+export const getPlatformStats = () => request<PlatformStats>('/platform/stats');

@@ -468,3 +468,18 @@ export interface MyOrderDetail {
   createdAt: string;
   items: { productName: string; unitPrice: number; quantity: number; subtotal: number }[];
 }
+
+// ---------- Statistiques de la plateforme ----------
+
+export interface PlatformStats {
+  businesses: {
+    total: number;
+    byStatus: Record<BusinessStatus, number>;
+    newLast7Days: number;
+    newLast30Days: number;
+  };
+  orders: { total: number; last7Days: number; last30Days: number };
+  products: { total: number; published: number };
+  reports: { open: number };
+  topBusinessesLast30Days: { name: string; slug: string; orderCount: number }[];
+}
