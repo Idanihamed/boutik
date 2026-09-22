@@ -304,32 +304,41 @@ model Brand {
 }
 
 model Product {
-  id                String             @id @default(cuid())
-  businessId        String             @default("")
-  business          Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  name              String
-  slug              String
-  sku               String
-  categoryId        String
-  category          Category           @relation(fields: [categoryId], references: [id])
-  brandId           String?
-  brand             Brand?             @relation(fields: [brandId], references: [id])
-  shortDescription  String?
-  description       String?
+  id                 String             @id @default(cuid())
+  businessId         String             @default("")
+  business           Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name               String
+  slug               String
+  sku                String
+  categoryId         String
+  category           Category           @relation(fields: [categoryId], references: [id])
+  brandId            String?
+  brand              Brand?             @relation(fields: [brandId], references: [id])
+  shortDescription   String?
+  description        String?
   // Montants en FCFA : entiers, sans décimales (voir §15 du cahier des charges).
-  price             Int
-  promoPrice        Int?
-  stock             Int                @default(0)
-  lowStockThreshold Int                @default(5)
-  warranty          String?
-  isFeatured        Boolean            @default(false)
-  status            ProductStatus      @default(DRAFT)
-  images            ProductImage[]
-  attributes        ProductAttribute[]
-  promotionLinks    PromotionProduct[]
-  orderItems        OrderItem[]
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  price              Int
+  promoPrice         Int?
+  stock              Int                @default(0)
+  lowStockThreshold  Int                @default(5)
+  warranty           String?
+  isFeatured         Boolean            @default(false)
+  status             ProductStatus      @default(DRAFT)
+  // Variantes (taille, couleur...) : quand hasVariants est vrai, le prix et le stock réels se
+  // lisent sur chaque ProductVariant (voir resolveVariantPricing côté service) ; price/stock
+  // ci-dessus restent utilisables comme valeurs par défaut pour une variante sans prix propre.
+  hasVariants        Boolean            @default(false)
+  // Nom des dimensions choisies par le commerçant (ex. "Taille", "Couleur") ; 2 au maximum
+  // dans cette première version, pour garder un choix simple côté client.
+  variantOption1Name String?
+  variantOption2Name String?
+  images             ProductImage[]
+  attributes         ProductAttribute[]
+  variants           ProductVariant[]
+  promotionLinks     PromotionProduct[]
+  orderItems         OrderItem[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@unique([businessId, slug])
   @@unique([businessId, sku])
@@ -363,6 +372,38 @@ model ProductAttribute {
 
   @@index([productId])
   @@map("product_attributes")
+}
+
+// Variante d'un produit (taille, couleur...) : voir Product.hasVariants. Pas de businessId
+// propre — comme ProductImage/ProductAttribute, isolée implicitement via son Product, jamais
+// interrogée en dehors d'une requête déjà filtrée par l'entreprise courante.
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Valeur pour chaque dimension déclarée sur le produit (Product.variantOption1Name/2Name) ;
+  // null si cette dimension n'est pas utilisée par ce produit.
+  option1Value String?
+  option2Value String?
+
+  sku        String?
+  // null = utilise le prix du produit (permet de ne fixer un prix différent que sur certaines
+  // variantes, ex. une taille XXL plus chère) — voir resolveVariantPricing.
+  price      Int?
+  promoPrice Int?
+  stock      Int     @default(0)
+  image      String?
+  isActive   Boolean @default(true)
+  sortOrder  Int     @default(0)
+
+  orderItems OrderItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([productId, option1Value, option2Value])
+  @@index([productId])
+  @@map("product_variants")
 }
 
 // ---------- Promotions & réductions (§13-17 du cahier des charges) ----------
@@ -620,22 +661,22 @@ model Order {
   customerContact String
   customerAddress String?
   customerId      String?
-  customer        User?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customer        User?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   // Retrait en boutique optionnel (§5.8) ; onDelete SetNull plutôt que Cascade — supprimer une
   // boutique ne doit jamais supprimer l'historique des commandes qui y étaient rattachées.
   boutiqueId String?
   boutique   Boutique? @relation(fields: [boutiqueId], references: [id], onDelete: SetNull)
 
-  notes       String?
-  status      OrderStatus @default(EN_ATTENTE)
+  notes          String?
+  status         OrderStatus @default(EN_ATTENTE)
   // Somme des sous-totaux de chaque ligne (voir OrderItem.subtotal), au moment de la commande —
   // ne recalcule jamais après coup même si les prix produits changent ensuite.
-  totalAmount Int
+  totalAmount    Int
   // Détail du total : totalAmount = somme des lignes - discountAmount + shippingFee. Figés à la
   // commande (un changement de tarif ou de code promo ensuite ne modifie jamais une commande passée).
-  discountAmount Int     @default(0)
-  shippingFee    Int     @default(0)
+  discountAmount Int         @default(0)
+  shippingFee    Int         @default(0)
   promoCode      String?
 
   items OrderItem[]
@@ -665,11 +706,17 @@ model OrderItem {
   product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   productName String
+
+  // Variante commandée (taille, couleur...), si le produit en a — SetNull comme productId :
+  // la suppression d'une variante ne doit jamais casser l'historique d'une commande passée.
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
   // Prix unitaire EFFECTIF (après promotion éventuelle) au moment de la commande, calculé
   // côté serveur (voir OrdersService.create) — jamais transmis par le client.
-  unitPrice   Int
-  quantity    Int
-  subtotal    Int
+  unitPrice Int
+  quantity  Int
+  subtotal  Int
 
   @@index([orderId])
   @@map("order_items")
@@ -732,26 +779,26 @@ model ActivityLog {
 // Une ligne par entreprise : réseaux sociaux affichés sur sa vitrine et numéro WhatsApp de
 // contact, modifiables depuis l'admin plutôt que codés en dur.
 model Setting {
-  id             String   @id @default(cuid())
-  businessId     String   @unique @default("")
-  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  whatsappNumber String?
-  facebookUrl    String?
-  instagramUrl   String?
-  tiktokUrl      String?
-  youtubeUrl     String?
-  linkedinUrl    String?
-  xUrl           String?
+  id                    String   @id @default(cuid())
+  businessId            String   @unique @default("")
+  business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  whatsappNumber        String?
+  facebookUrl           String?
+  instagramUrl          String?
+  tiktokUrl             String?
+  youtubeUrl            String?
+  linkedinUrl           String?
+  xUrl                  String?
   // Visuels du hero de la page d'accueil (chemins /uploads/..., voir MediaModule) : uploadés
   // par l'admin depuis Paramètres plutôt que codés en dur, pour que chaque entreprise puisse les remplacer
   // par ses propres images sans intervention technique.
-  heroImage1     String?
-  heroImage2     String?
+  heroImage1            String?
+  heroImage2            String?
   // Livraison à domicile : montant fixe (0 = gratuite) et seuil de commande à partir duquel elle
   // devient offerte (null = jamais). Le retrait en boutique n'a jamais de frais.
   shippingFee           Int      @default(0)
   freeShippingThreshold Int?
-  updatedAt      DateTime @updatedAt
+  updatedAt             DateTime @updatedAt
 
   @@map("settings")
 }

@@ -5,7 +5,9 @@ import { PromotionsService } from '../promotions/promotions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { toSlug } from '../common/utils/slug.util';
 import { computeStockStatus } from '../common/utils/stock-status.util';
+import { formatVariantLabel } from '../common/utils/variant-pricing.util';
 import { CreateProductDto } from './dto/create-product.dto';
+import { ProductVariantDto } from './dto/product-variant.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { QueryProductsAdminDto, QueryProductsDto } from './dto/query-products.dto';
 import { PRODUCT_INCLUDE, ProductWithRelations, toProductView } from './products.mapper';
@@ -53,15 +55,15 @@ export class ProductsService {
    * actives (§14 du cahier des charges) : une seule requête groupée pour tout le lot,
    * pour éviter le N+1 lors de l'affichage d'une liste.
    */
-  private async mapProductsWithPromotions(products: ProductWithRelations[]) {
+  private async mapProductsWithPromotions(products: ProductWithRelations[], activeVariantsOnly = false) {
     const promotionsByProduct = await this.promotionsService.getApplicablePromotionsFor(
       products.map((p) => ({ id: p.id, categoryId: p.categoryId })),
     );
-    return products.map((p) => toProductView(p, promotionsByProduct.get(p.id) ?? []));
+    return products.map((p) => toProductView(p, promotionsByProduct.get(p.id) ?? [], { activeVariantsOnly }));
   }
 
-  private async mapOneWithPromotions(product: ProductWithRelations) {
-    const [view] = await this.mapProductsWithPromotions([product]);
+  private async mapOneWithPromotions(product: ProductWithRelations, activeVariantsOnly = false) {
+    const [view] = await this.mapProductsWithPromotions([product], activeVariantsOnly);
     return view;
   }
 
@@ -90,6 +92,67 @@ export class ProductsService {
     if (promoPrice != null && promoPrice >= price) {
       throw new BadRequestException('Le prix promotionnel doit être strictement inférieur au prix normal.');
     }
+  }
+
+  /**
+   * Un produit à variantes (taille, couleur...) doit avoir un nom pour sa première dimension et
+   * au moins une variante ; chaque variante doit renseigner cette dimension (et la seconde, si
+   * elle existe), sans qu'aucune combinaison ne se répète — sinon deux lignes "M" désigneraient
+   * arbitrairement l'une des deux au client, sans qu'on sache jamais laquelle.
+   */
+  private assertValidVariants(
+    dto: {
+      variantOption1Name?: string;
+      variantOption2Name?: string;
+      variants?: ProductVariantDto[];
+    },
+    fallbackPrice: number,
+  ) {
+    if (!dto.variantOption1Name?.trim()) {
+      throw new BadRequestException(
+        'Indiquez le nom de la première dimension (par exemple « Taille ») pour un produit à variantes.',
+      );
+    }
+    if (!dto.variants?.length) {
+      throw new BadRequestException('Ajoutez au moins une variante (par exemple une taille) pour ce produit.');
+    }
+
+    const seen = new Set<string>();
+    for (const variant of dto.variants) {
+      if (!variant.option1Value?.trim()) {
+        throw new BadRequestException(`Chaque variante doit préciser sa valeur pour « ${dto.variantOption1Name} ».`);
+      }
+      if (dto.variantOption2Name && !variant.option2Value?.trim()) {
+        throw new BadRequestException(`Chaque variante doit préciser sa valeur pour « ${dto.variantOption2Name} ».`);
+      }
+      if (!dto.variantOption2Name && variant.option2Value?.trim()) {
+        throw new BadRequestException(
+          'Une valeur est fournie pour une deuxième dimension, mais aucune deuxième dimension n’est définie.',
+        );
+      }
+
+      const key = `${variant.option1Value.trim().toLowerCase()}::${variant.option2Value?.trim().toLowerCase() ?? ''}`;
+      if (seen.has(key)) {
+        throw new BadRequestException('Deux variantes ne peuvent pas avoir exactement les mêmes valeurs.');
+      }
+      seen.add(key);
+
+      this.assertValidPromoPrice(variant.price ?? fallbackPrice, variant.promoPrice);
+    }
+  }
+
+  private toVariantCreateData(variant: ProductVariantDto, index: number) {
+    return {
+      option1Value: variant.option1Value?.trim() || null,
+      option2Value: variant.option2Value?.trim() || null,
+      sku: variant.sku?.trim() || null,
+      price: variant.price ?? null,
+      promoPrice: variant.promoPrice ?? null,
+      stock: variant.stock,
+      image: variant.image ?? null,
+      isActive: variant.isActive ?? true,
+      sortOrder: variant.sortOrder ?? index,
+    };
   }
 
   /** Évite qu'un categoryId/brandId invalide ou obsolète (supprimé entre-temps) ne
@@ -168,6 +231,7 @@ export class ProductsService {
     this.assertValidPromoPrice(dto.price, dto.promoPrice);
     this.assertCanSetStatus(dto.status, callerPermissions);
     await this.assertCategoryAndBrandExist(dto.categoryId, dto.brandId);
+    if (dto.hasVariants) this.assertValidVariants(dto, dto.price);
 
     const slug = await this.ensureUniqueSlug(toSlug(dto.name));
 
@@ -187,12 +251,19 @@ export class ProductsService {
         warranty: dto.warranty,
         isFeatured: dto.isFeatured ?? false,
         status: dto.status ?? 'DRAFT',
+        hasVariants: dto.hasVariants ?? false,
+        variantOption1Name: dto.hasVariants ? dto.variantOption1Name : undefined,
+        variantOption2Name: dto.hasVariants ? dto.variantOption2Name : undefined,
         images: dto.images?.length
           ? { create: dto.images.map((img, i) => ({ ...img, sortOrder: img.sortOrder ?? i })) }
           : undefined,
         attributes: dto.attributes?.length
           ? { create: dto.attributes.map((attr, i) => ({ ...attr, sortOrder: attr.sortOrder ?? i })) }
           : undefined,
+        variants:
+          dto.hasVariants && dto.variants?.length
+            ? { create: dto.variants.map((v, i) => this.toVariantCreateData(v, i)) }
+            : undefined,
       },
       include: PRODUCT_INCLUDE,
     });
@@ -246,6 +317,41 @@ export class ProductsService {
       data.attributes = { create: dto.attributes.map((attr, i) => ({ ...attr, sortOrder: attr.sortOrder ?? i })) };
     }
 
+    // Variantes : un nouveau tableau REMPLACE entièrement l'ancien (même principe que
+    // images/attributes ci-dessus) ; un tableau absent ne touche à rien. Repasser à "sans
+    // variantes" efface toujours les anciennes lignes, même sans nouveau tableau fourni : le
+    // produit reprend alors son propre prix et son propre stock.
+    const finalHasVariants = dto.hasVariants ?? existing.hasVariants;
+    const turningOn = finalHasVariants && !existing.hasVariants;
+    if (turningOn && dto.variants === undefined) {
+      throw new BadRequestException('Ajoutez au moins une variante pour activer les variantes de ce produit.');
+    }
+
+    data.hasVariants = finalHasVariants;
+    if (!finalHasVariants) {
+      data.variantOption1Name = null;
+      data.variantOption2Name = null;
+      if (existing.hasVariants) await this.prisma.productVariant.deleteMany({ where: { productId: id } });
+    } else {
+      if (dto.variantOption1Name !== undefined) data.variantOption1Name = dto.variantOption1Name;
+      if (dto.variantOption2Name !== undefined) data.variantOption2Name = dto.variantOption2Name;
+
+      if (dto.variants !== undefined) {
+        this.assertValidVariants(
+          {
+            variantOption1Name: dto.variantOption1Name ?? existing.variantOption1Name ?? undefined,
+            variantOption2Name: dto.variantOption2Name ?? existing.variantOption2Name ?? undefined,
+            variants: dto.variants,
+          },
+          finalPrice,
+        );
+        await this.prisma.productVariant.deleteMany({ where: { productId: id } });
+        data.variants = dto.variants.length
+          ? { create: dto.variants.map((v, i) => this.toVariantCreateData(v, i)) }
+          : undefined;
+      }
+    }
+
     const product = await this.prisma.product.update({ where: { id }, data, include: PRODUCT_INCLUDE });
 
     if (dto.stock !== undefined || dto.lowStockThreshold !== undefined) {
@@ -292,6 +398,9 @@ export class ProductsService {
         warranty: original.warranty,
         isFeatured: false,
         status: 'DRAFT',
+        hasVariants: original.hasVariants,
+        variantOption1Name: original.variantOption1Name,
+        variantOption2Name: original.variantOption2Name,
         images: {
           create: original.images.map((img) => ({
             url: img.url,
@@ -305,6 +414,20 @@ export class ProductsService {
             key: attr.key,
             value: attr.value,
             sortOrder: attr.sortOrder,
+          })),
+        },
+        // Copie des variantes, stock remis à zéro comme pour le produit lui-même.
+        variants: {
+          create: original.variants.map((v) => ({
+            option1Value: v.option1Value,
+            option2Value: v.option2Value,
+            sku: v.sku,
+            price: v.price,
+            promoPrice: v.promoPrice,
+            stock: 0,
+            image: v.image,
+            isActive: v.isActive,
+            sortOrder: v.sortOrder,
           })),
         },
       },
@@ -327,6 +450,11 @@ export class ProductsService {
   async adjustStock(id: string, delta: number) {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundException('Produit introuvable.');
+    if (product.hasVariants) {
+      throw new BadRequestException(
+        'Ce produit a des variantes : ajustez le stock de chaque taille/couleur depuis sa fiche.',
+      );
+    }
     const previousStatus = computeStockStatus(product.stock, product.lowStockThreshold);
     const newStock = Math.max(0, product.stock + delta);
     const updated = await this.prisma.product.update({
@@ -338,6 +466,32 @@ export class ProductsService {
     const newStatus = computeStockStatus(updated.stock, updated.lowStockThreshold);
     await this.notifyIfStockWorsened(updated.id, updated.name, previousStatus, newStatus);
 
+    return this.mapOneWithPromotions(updated);
+  }
+
+  /** Ajuste le stock d'UNE variante (voir adjustStock, l'équivalent pour un produit sans variante). */
+  async adjustVariantStock(productId: string, variantId: string, delta: number) {
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product) throw new NotFoundException('Produit introuvable.');
+    if (!product.hasVariants) throw new BadRequestException('Ce produit n’a pas de variantes.');
+
+    const variant = await this.prisma.productVariant.findFirst({ where: { id: variantId, productId } });
+    if (!variant) throw new NotFoundException('Variante introuvable.');
+
+    const previousStatus = computeStockStatus(variant.stock, product.lowStockThreshold);
+    const newStock = Math.max(0, variant.stock + delta);
+    await this.prisma.productVariant.update({ where: { id: variantId }, data: { stock: newStock } });
+
+    const newStatus = computeStockStatus(newStock, product.lowStockThreshold);
+    const label = formatVariantLabel(variant);
+    await this.notifyIfStockWorsened(
+      product.id,
+      label ? `${product.name} (${label})` : product.name,
+      previousStatus,
+      newStatus,
+    );
+
+    const updated = await this.prisma.product.findUniqueOrThrow({ where: { id: productId }, include: PRODUCT_INCLUDE });
     return this.mapOneWithPromotions(updated);
   }
 
@@ -403,7 +557,7 @@ export class ProductsService {
       // À optimiser (colonne de prix effectif matérialisée, ou moteur de recherche dédié)
       // si le catalogue grossit significativement (voir §29 de la revue du cahier des charges).
       const allMatching = await this.prisma.product.findMany({ where, include: PRODUCT_INCLUDE, orderBy });
-      const allViews = await this.mapProductsWithPromotions(allMatching);
+      const allViews = await this.mapProductsWithPromotions(allMatching, true);
       const onSaleViews = allViews.filter((p) => p.onSale);
       const total = onSaleViews.length;
       const data = onSaleViews.slice((page - 1) * limit, (page - 1) * limit + limit);
@@ -422,7 +576,7 @@ export class ProductsService {
     ]);
 
     return {
-      data: await this.mapProductsWithPromotions(items),
+      data: await this.mapProductsWithPromotions(items, true),
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -434,7 +588,7 @@ export class ProductsService {
       orderBy: { createdAt: 'desc' },
       take,
     });
-    return this.mapProductsWithPromotions(items);
+    return this.mapProductsWithPromotions(items, true);
   }
 
   async findOneBySlugPublic(slug: string) {
@@ -456,7 +610,7 @@ export class ProductsService {
       take: 4,
     });
 
-    const [productView, ...similarViews] = await this.mapProductsWithPromotions([product, ...similar]);
+    const [productView, ...similarViews] = await this.mapProductsWithPromotions([product, ...similar], true);
 
     return {
       product: productView,

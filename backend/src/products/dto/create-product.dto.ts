@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import { ProductAttributeDto } from './product-attribute.dto';
 import { ProductImageDto } from './product-image.dto';
+import { ProductVariantDto } from './product-variant.dto';
 
 export class CreateProductDto {
   @IsString()
@@ -82,4 +83,27 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => ProductAttributeDto)
   attributes?: ProductAttributeDto[];
+
+  // ---------- Variantes (taille, couleur...) ----------
+
+  @IsOptional()
+  @IsBoolean()
+  hasVariants?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  variantOption1Name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  variantOption2Name?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(60)
+  @ValidateNested({ each: true })
+  @Type(() => ProductVariantDto)
+  variants?: ProductVariantDto[];
 }

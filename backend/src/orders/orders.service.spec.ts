@@ -23,6 +23,20 @@ function buildProduct(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+function buildVariant(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 'var-1',
+    productId: 'prod-1',
+    option1Value: 'M',
+    option2Value: null,
+    price: null,
+    promoPrice: null,
+    stock: 4,
+    isActive: true,
+    ...overrides,
+  };
+}
+
 function buildDto(overrides: Partial<CreateOrderDto> = {}): CreateOrderDto {
   return {
     customerName: 'Client Test',
@@ -43,6 +57,7 @@ describe('OrdersService.create', () => {
     boutique: { findUnique: jest.Mock };
     business: { findUnique: jest.Mock };
     product: { findMany: jest.Mock; updateMany: jest.Mock };
+    productVariant: { findMany: jest.Mock; updateMany: jest.Mock };
     setting: { findFirst: jest.Mock };
     promoCode: { updateMany: jest.Mock };
     $transaction: jest.Mock;
@@ -65,12 +80,16 @@ describe('OrdersService.create', () => {
         findMany: jest.fn().mockResolvedValue([buildProduct()]),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
+      productVariant: {
+        findMany: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
       setting: { findFirst: jest.fn().mockResolvedValue(null) }, // pas de frais de livraison configurés
       promoCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       // Simule tx.product.updateMany / tx.order.create en réutilisant les mêmes mocks que prisma
       // directement : le comportement testé (compte de lignes affectées) est identique.
       $transaction: jest.fn(async (cb: (tx: unknown) => unknown) =>
-        cb({ product: prisma.product, order: prisma.order, promoCode: prisma.promoCode }),
+        cb({ product: prisma.product, productVariant: prisma.productVariant, order: prisma.order, promoCode: prisma.promoCode }),
       ),
     };
     promotionsService = { getApplicablePromotionsFor: jest.fn().mockResolvedValue(new Map()) };
@@ -225,6 +244,113 @@ describe('OrdersService.create', () => {
     it('n’alerte pas tant que le stock reste au-dessus du seuil', async () => {
       await service.create(buildDto({ items: [{ productId: 'prod-1', quantity: 2 }] })); // 5 -> 3
       expect(stockAlerts()).toEqual([]);
+    });
+  });
+
+  describe('produit à variantes', () => {
+    beforeEach(() => {
+      prisma.product.findMany.mockResolvedValue([buildProduct({ hasVariants: true })]);
+    });
+
+    it('exige une variante pour un produit qui en a', async () => {
+      prisma.productVariant.findMany.mockResolvedValue([buildVariant()]);
+      await expect(service.create(buildDto({ items: [{ productId: 'prod-1', quantity: 1 }] }))).rejects.toThrow(
+        'Choisissez une variante',
+      );
+      expect(prisma.order.create).not.toHaveBeenCalled();
+    });
+
+    it('refuse une variante d’un AUTRE produit (IDOR)', async () => {
+      prisma.productVariant.findMany.mockResolvedValue([buildVariant({ productId: 'autre-produit' })]);
+      await expect(
+        service.create(buildDto({ items: [{ productId: 'prod-1', variantId: 'var-1', quantity: 1 }] })),
+      ).rejects.toThrow('Choisissez une variante');
+    });
+
+    it('refuse une variante désactivée', async () => {
+      prisma.productVariant.findMany.mockResolvedValue([buildVariant({ isActive: false })]);
+      await expect(
+        service.create(buildDto({ items: [{ productId: 'prod-1', variantId: 'var-1', quantity: 1 }] })),
+      ).rejects.toThrow('Choisissez une variante');
+    });
+
+    it('refuse un variantId sur un produit SANS variantes', async () => {
+      prisma.product.findMany.mockResolvedValue([buildProduct({ hasVariants: false })]);
+      await expect(
+        service.create(buildDto({ items: [{ productId: 'prod-1', variantId: 'var-1', quantity: 1 }] })),
+      ).rejects.toThrow('n’a pas de variantes');
+    });
+
+    it('vérifie le stock DE LA VARIANTE, pas celui (inutilisé) du produit', async () => {
+      prisma.productVariant.findMany.mockResolvedValue([buildVariant({ stock: 1 })]);
+      await expect(
+        service.create(buildDto({ items: [{ productId: 'prod-1', variantId: 'var-1', quantity: 2 }] })),
+      ).rejects.toThrow('Stock insuffisant');
+    });
+
+    it('facture le prix DE LA VARIANTE et enregistre son étiquette dans l’historique', async () => {
+      prisma.productVariant.findMany.mockResolvedValue([buildVariant({ price: 18000 })]);
+      await service.create(buildDto({ items: [{ productId: 'prod-1', variantId: 'var-1', quantity: 1 }] }));
+
+      const data = prisma.order.create.mock.calls[0][0].data;
+      expect(data.totalAmount).toBe(18000);
+      expect(data.items.create[0]).toMatchObject({ variantId: 'var-1', unitPrice: 18000, productName: 'Produit test · M' });
+    });
+
+    it('une variante sans prix propre hérite du prix du produit', async () => {
+      prisma.productVariant.findMany.mockResolvedValue([buildVariant({ price: null })]);
+      await service.create(buildDto({ items: [{ productId: 'prod-1', variantId: 'var-1', quantity: 1 }] }));
+      expect(prisma.order.create.mock.calls[0][0].data.totalAmount).toBe(10000);
+    });
+
+    it('décrémente le stock DE LA VARIANTE, jamais celui du produit', async () => {
+      prisma.productVariant.findMany.mockResolvedValue([buildVariant()]);
+      await service.create(buildDto({ items: [{ productId: 'prod-1', variantId: 'var-1', quantity: 2 }] }));
+
+      expect(prisma.productVariant.updateMany).toHaveBeenCalledWith({
+        where: { id: 'var-1', stock: { gte: 2 } },
+        data: { stock: { decrement: 2 } },
+      });
+      expect(prisma.product.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('permet deux lignes du MÊME produit avec des variantes DIFFÉRENTES (ex. tailles M et L)', async () => {
+      prisma.productVariant.findMany.mockResolvedValue([buildVariant({ id: 'var-1', option1Value: 'M' }), buildVariant({ id: 'var-2', option1Value: 'L' })]);
+      await expect(
+        service.create(
+          buildDto({
+            items: [
+              { productId: 'prod-1', variantId: 'var-1', quantity: 1 },
+              { productId: 'prod-1', variantId: 'var-2', quantity: 1 },
+            ],
+          }),
+        ),
+      ).resolves.toMatchObject({ success: true });
+    });
+
+    it('rejette deux lignes identiques (même produit, même variante)', async () => {
+      prisma.productVariant.findMany.mockResolvedValue([buildVariant()]);
+      await expect(
+        service.create(
+          buildDto({
+            items: [
+              { productId: 'prod-1', variantId: 'var-1', quantity: 1 },
+              { productId: 'prod-1', variantId: 'var-1', quantity: 1 },
+            ],
+          }),
+        ),
+      ).rejects.toThrow('qu’une seule fois');
+    });
+
+    it('alerte quand la vente vide le stock d’une variante, avec son étiquette', async () => {
+      prisma.productVariant.findMany.mockResolvedValue([buildVariant({ stock: 2 })]);
+      await service.create(buildDto({ items: [{ productId: 'prod-1', variantId: 'var-1', quantity: 2 }] }));
+
+      expect(notificationsService.create).toHaveBeenCalledWith(
+        'OUT_OF_STOCK',
+        'Le produit « Produit test (M) » est en rupture de stock.',
+        '/espace/produits/prod-1',
+      );
     });
   });
 

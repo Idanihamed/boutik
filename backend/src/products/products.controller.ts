@@ -96,4 +96,10 @@ export class ProductsController {
   adjustStock(@Param('id') id: string, @Body() dto: AdjustStockDto) {
     return this.productsService.adjustStock(id, dto.delta);
   }
+
+  @RequirePermissions('products:update')
+  @Patch('admin/products/:id/variants/:variantId/stock')
+  adjustVariantStock(@Param('id') id: string, @Param('variantId') variantId: string, @Body() dto: AdjustStockDto) {
+    return this.productsService.adjustVariantStock(id, variantId, dto.delta);
+  }
 }

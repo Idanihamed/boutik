@@ -13,6 +13,7 @@ import { escapeHtml } from '../common/utils/escape-html.util';
 import { formatMoney } from '../common/utils/money.util';
 import { computeStockStatus } from '../common/utils/stock-status.util';
 import { computeShippingFee, evaluatePromoCode, normalizePromoCode } from '../common/utils/order-pricing.util';
+import { formatVariantLabel, resolveVariantBasePrice } from '../common/utils/variant-pricing.util';
 import { currentBusinessId } from '../tenancy/tenant-context';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QuoteOrderDto } from './dto/quote-order.dto';
@@ -56,7 +57,11 @@ export class OrdersService {
    * code promo, livraison, total. Partagé par l'aperçu du panier (quote) et la commande réelle
    * (create), pour que le montant affiché soit toujours celui facturé.
    */
-  private async priceOrder(dto: { items: { productId: string; quantity: number }[]; boutiqueId?: string; promoCode?: string }) {
+  private async priceOrder(dto: {
+    items: { productId: string; variantId?: string; quantity: number }[];
+    boutiqueId?: string;
+    promoCode?: string;
+  }) {
     if (dto.boutiqueId) {
       const boutique = await this.prisma.boutique.findUnique({ where: { id: dto.boutiqueId } });
       if (!boutique || !boutique.isActive) {
@@ -64,22 +69,37 @@ export class OrdersService {
       }
     }
 
-    // Un seul produit commandé plusieurs fois dans la même requête (deux lignes distinctes
-    // pour le même productId) fusionnerait silencieusement les quantités si on ne le
-    // détectait pas : sans ça, la vérification de stock ci-dessous porterait sur chaque
-    // ligne séparément (chacune < stock dispo) alors que leur somme pourrait le dépasser.
-    const productIds = dto.items.map((item) => item.productId);
-    if (new Set(productIds).size !== productIds.length) {
-      throw new BadRequestException('Un même produit ne peut apparaître qu’une seule fois dans la commande.');
+    // Un même ARTICLE (produit + variante) commandé plusieurs fois dans la même requête (deux
+    // lignes identiques) fusionnerait silencieusement les quantités si on ne le détectait pas :
+    // sans ça, la vérification de stock porterait sur chaque ligne séparément (chacune < stock
+    // dispo) alors que leur somme pourrait le dépasser. La clé inclut la variante : commander à
+    // la fois une taille M et une taille L du même produit est en revanche parfaitement normal.
+    const itemKeys = dto.items.map((item) => `${item.productId}::${item.variantId ?? ''}`);
+    if (new Set(itemKeys).size !== itemKeys.length) {
+      throw new BadRequestException('Un même article (produit et variante) ne peut apparaître qu’une seule fois dans la commande.');
     }
 
+    const productIds = dto.items.map((item) => item.productId);
     const products = await this.prisma.product.findMany({ where: { id: { in: productIds } } });
     const productById = new Map(products.map((p) => [p.id, p]));
+
+    const variantIds = dto.items.map((item) => item.variantId).filter((id): id is string => Boolean(id));
+    const variants =
+      variantIds.length > 0 ? await this.prisma.productVariant.findMany({ where: { id: { in: variantIds } } }) : [];
+    const variantById = new Map(variants.map((v) => [v.id, v]));
 
     for (const item of dto.items) {
       const product = productById.get(item.productId);
       if (!product || product.status !== 'PUBLISHED') {
         throw new BadRequestException(`Produit introuvable ou indisponible (${item.productId}).`);
+      }
+      if (product.hasVariants) {
+        const variant = item.variantId ? variantById.get(item.variantId) : undefined;
+        if (!variant || variant.productId !== product.id || !variant.isActive) {
+          throw new BadRequestException(`Choisissez une variante valide pour « ${product.name} ».`);
+        }
+      } else if (item.variantId) {
+        throw new BadRequestException(`« ${product.name} » n’a pas de variantes.`);
       }
     }
 
@@ -92,16 +112,24 @@ export class OrdersService {
 
     const lines = dto.items.map((item) => {
       const product = productById.get(item.productId)!;
-      if (product.stock < item.quantity) {
-        throw new BadRequestException(
-          `Stock insuffisant pour « ${product.name} » (${product.stock} disponible(s)).`,
-        );
+      const variant = item.variantId ? (variantById.get(item.variantId) ?? null) : null;
+      const label = formatVariantLabel(variant);
+      const displayName = label ? `${product.name} · ${label}` : product.name;
+      const availableStock = variant ? variant.stock : product.stock;
+
+      if (availableStock < item.quantity) {
+        throw new BadRequestException(`Stock insuffisant pour « ${displayName} » (${availableStock} disponible(s)).`);
       }
-      const pricing = resolveEffectivePrice(product.price, product.promoPrice, promotionsByProduct.get(product.id) ?? []);
+      const base = resolveVariantBasePrice(product, variant);
+      const pricing = resolveEffectivePrice(base.price, base.promoPrice, promotionsByProduct.get(product.id) ?? []);
       const subtotal = pricing.effectivePrice * item.quantity;
       return {
         productId: product.id,
-        productName: product.name,
+        variantId: variant?.id,
+        // La variante est baquée dans cet instantané (ex. « Robe wax · M »), plutôt que dans une
+        // colonne séparée : tous les écrans qui affichent déjà productName (suivi client, vue du
+        // commerçant, application mobile) montrent donc la bonne taille/couleur sans y toucher.
+        productName: displayName,
         unitPrice: pricing.effectivePrice,
         quantity: item.quantity,
         subtotal,
@@ -125,6 +153,7 @@ export class OrdersService {
 
     return {
       productById,
+      variantById,
       lines,
       subtotal,
       discount,
@@ -172,7 +201,7 @@ export class OrdersService {
     }
 
     const priced = await this.priceOrder(dto);
-    const { lines, productById, discount, shippingFee, totalAmount, promo, promoText, promoCheck } = priced;
+    const { lines, productById, variantById, discount, shippingFee, totalAmount, promo, promoText, promoCheck } = priced;
 
     // Un code saisi mais refusé bloque la commande : le client ne doit pas payer plein tarif sans le savoir.
     if (promoCheck && !promoCheck.valid) {
@@ -192,11 +221,17 @@ export class OrdersService {
         // updateMany + where stock >= quantity plutôt qu'update simple : verrou optimiste qui
         // empêche deux commandes concurrentes de vendre le même dernier exemplaire (l'une des
         // deux ne trouvera plus assez de stock au moment de cette requête et échouera proprement
-        // ci-dessous, plutôt que de laisser le stock passer négatif).
-        const result = await tx.product.updateMany({
-          where: { id: line.productId, stock: { gte: line.quantity } },
-          data: { stock: { decrement: line.quantity } },
-        });
+        // ci-dessous, plutôt que de laisser le stock passer négatif). Une ligne avec variante
+        // décrémente le stock de LA VARIANTE, jamais celui (inutilisé) du produit lui-même.
+        const result = line.variantId
+          ? await tx.productVariant.updateMany({
+              where: { id: line.variantId, stock: { gte: line.quantity } },
+              data: { stock: { decrement: line.quantity } },
+            })
+          : await tx.product.updateMany({
+              where: { id: line.productId, stock: { gte: line.quantity } },
+              data: { stock: { decrement: line.quantity } },
+            });
         if (result.count === 0) {
           throw new BadRequestException(`Stock insuffisant pour « ${line.productName} », réessayez.`);
         }
@@ -240,24 +275,29 @@ export class OrdersService {
       '/espace/commandes',
     );
 
-    // Une vente peut faire passer un produit en stock faible ou en rupture : le responsable doit
-    // en être alerté comme lors d'une modification manuelle du stock (voir
+    // Une vente peut faire passer un produit (ou une variante) en stock faible ou en rupture :
+    // le responsable doit en être alerté comme lors d'une modification manuelle du stock (voir
     // ProductsService.notifyIfStockWorsened), sinon il ne le découvre qu'au prochain client déçu.
     for (const line of lines) {
       const product = productById.get(line.productId)!;
-      const before = computeStockStatus(product.stock, product.lowStockThreshold);
-      const after = computeStockStatus(product.stock - line.quantity, product.lowStockThreshold);
+      const variant = line.variantId ? variantById.get(line.variantId) : undefined;
+      const stockBefore = variant ? variant.stock : product.stock;
+      const before = computeStockStatus(stockBefore, product.lowStockThreshold);
+      const after = computeStockStatus(stockBefore - line.quantity, product.lowStockThreshold);
       if (after === before) continue;
+
+      const label = variant ? formatVariantLabel(variant) : null;
+      const displayName = label ? `${product.name} (${label})` : product.name;
       if (after === 'RUPTURE') {
         await this.notificationsService.create(
           'OUT_OF_STOCK',
-          `Le produit « ${product.name} » est en rupture de stock.`,
+          `Le produit « ${displayName} » est en rupture de stock.`,
           `/espace/produits/${product.id}`,
         );
       } else if (after === 'STOCK_FAIBLE') {
         await this.notificationsService.create(
           'LOW_STOCK',
-          `Le produit « ${product.name} » passe en stock faible.`,
+          `Le produit « ${displayName} » passe en stock faible.`,
           `/espace/produits/${product.id}`,
         );
       }
@@ -412,24 +452,46 @@ export class OrdersService {
     const willBeCancelled = status === CANCELLED;
 
     if (wasCancelled !== willBeCancelled) {
-      const itemsWithProduct = existing.items.filter((item) => item.productId);
+      // Une ligne avec variante ajuste LE STOCK DE LA VARIANTE, jamais celui (inutilisé) du
+      // produit. Si le produit — ou la variante — a depuis été supprimé, la ligne est ignorée :
+      // il n'y a plus rien à ajuster pour une référence qui n'existe plus.
+      const variantItems = existing.items.filter((item) => item.variantId);
+      const plainItems = existing.items.filter((item) => item.productId && !item.variantId);
+
       if (willBeCancelled) {
         // Annulation : toujours possible de restocker (une incrémentation ne peut pas échouer).
-        await this.prisma.$transaction(
-          itemsWithProduct.map((item) =>
+        await this.prisma.$transaction([
+          ...plainItems.map((item) =>
             this.prisma.product.update({
               where: { id: item.productId! },
               data: { stock: { increment: item.quantity } },
             }),
           ),
-        );
+          ...variantItems.map((item) =>
+            this.prisma.productVariant.update({
+              where: { id: item.variantId! },
+              data: { stock: { increment: item.quantity } },
+            }),
+          ),
+        ]);
       } else {
         // Réactivation d'une commande annulée : même garde-fou que create() contre un stock
         // qui serait entre-temps devenu insuffisant (vendu ailleurs pendant l'annulation).
         await this.prisma.$transaction(async (tx) => {
-          for (const item of itemsWithProduct) {
+          for (const item of plainItems) {
             const result = await tx.product.updateMany({
               where: { id: item.productId!, stock: { gte: item.quantity } },
+              data: { stock: { decrement: item.quantity } },
+            });
+            if (result.count === 0) {
+              throw new BadRequestException(
+                `Stock insuffisant pour réactiver cette commande (« ${item.productName} » n’a plus assez de stock).`,
+              );
+            }
+          }
+          for (const item of variantItems) {
+            const result = await tx.productVariant.updateMany({
+              where: { id: item.variantId!, stock: { gte: item.quantity } },
               data: { stock: { decrement: item.quantity } },
             });
             if (result.count === 0) {
