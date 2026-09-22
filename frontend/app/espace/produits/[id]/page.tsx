@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
   adjustProductStock,
+  adjustVariantStock,
   ApiError,
   deleteProduct,
   duplicateProduct,
@@ -29,6 +30,7 @@ export default function EditProductPage() {
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [delta, setDelta] = useState('1');
+  const [variantDeltas, setVariantDeltas] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     try {
@@ -87,6 +89,10 @@ export default function EditProductPage() {
 
   const amount = Math.trunc(Number(delta) || 0);
 
+  function variantAmount(variantId: string) {
+    return Math.trunc(Number(variantDeltas[variantId] ?? '1') || 0);
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <Link href="/espace/produits" className="text-sm font-medium text-brand-700 hover:underline">
@@ -131,7 +137,65 @@ export default function EditProductPage() {
       {error && <Alert>{error}</Alert>}
       {notice && <Alert kind="success">{notice}</Alert>}
 
-      {can('products:update') && (
+      {can('products:update') && product.hasVariants && (
+        <Card className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-slate-900">Stock total : {product.stock}</h2>
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STOCK_STYLES[product.stockStatus]}`}>
+              {STOCK_LABELS[product.stockStatus]}
+            </span>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {product.variants.map((variant) => (
+              <div key={variant.id} className="flex flex-wrap items-end justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-slate-900">
+                    {variant.label || '(sans libellé)'}
+                    {!variant.isActive && <span className="ml-2 text-xs font-normal text-slate-400">Désactivée</span>}
+                  </p>
+                  <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <span>Stock : {variant.stock}</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STOCK_STYLES[variant.stockStatus]}`}>
+                      {STOCK_LABELS[variant.stockStatus]}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="w-24">
+                    <Field label="Quantité" htmlFor={`stock-delta-${variant.id}`}>
+                      <Input
+                        id={`stock-delta-${variant.id}`}
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        step={1}
+                        value={variantDeltas[variant.id] ?? '1'}
+                        onChange={(e) => setVariantDeltas((prev) => ({ ...prev, [variant.id]: e.target.value }))}
+                      />
+                    </Field>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    disabled={busy || variantAmount(variant.id) < 1}
+                    onClick={() => run(() => adjustVariantStock(id, variant.id, variantAmount(variant.id)), 'Stock mis à jour.')}
+                  >
+                    Ajouter
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={busy || variantAmount(variant.id) < 1}
+                    onClick={() => run(() => adjustVariantStock(id, variant.id, -variantAmount(variant.id)), 'Stock mis à jour.')}
+                  >
+                    Retirer
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {can('products:update') && !product.hasVariants && (
         <Card className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-semibold text-slate-900">Stock : {product.stock}</h2>

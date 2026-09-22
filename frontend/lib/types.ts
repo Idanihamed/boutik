@@ -128,8 +128,33 @@ export interface Product {
   status: ProductStatus;
   images: ProductImage[];
   attributes: ProductAttribute[];
+  hasVariants: boolean;
+  variantOption1Name: string | null;
+  variantOption2Name: string | null;
+  variants: ProductVariant[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProductVariant {
+  id: string;
+  label: string;
+  option1Value: string | null;
+  option2Value: string | null;
+  sku: string | null;
+  price: number;
+  promoPrice: number | null;
+  // Valeur brute (null = « hérite du produit »), distincte de price/promoPrice ci-dessus (déjà
+  // résolus) : sert à préremplir le formulaire sans afficher le prix du produit comme le sien.
+  priceOverride: number | null;
+  promoPriceOverride: number | null;
+  effectivePrice: number;
+  discountPercentage: number;
+  onSale: boolean;
+  stock: number;
+  stockStatus: StockStatus;
+  image: string | null;
+  isActive: boolean;
 }
 
 /** Corps envoyé à l'API pour créer ou modifier un produit. */
@@ -150,6 +175,18 @@ export interface ProductInput {
   status: ProductStatus;
   images: { url: string; alt?: string; isMain: boolean; sortOrder: number }[];
   attributes: { key: string; value: string; sortOrder: number }[];
+  hasVariants?: boolean;
+  variantOption1Name?: string;
+  variantOption2Name?: string;
+  variants?: {
+    option1Value?: string;
+    option2Value?: string;
+    sku?: string;
+    price?: number | null;
+    promoPrice?: number | null;
+    stock: number;
+    isActive?: boolean;
+  }[];
 }
 
 export interface MyBusiness {

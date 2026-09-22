@@ -48,6 +48,11 @@ export function toProductView(
       sku: variant.sku,
       price: base.price,
       promoPrice: base.promoPrice,
+      // Valeur BRUTE telle qu'enregistrée (null = « hérite du produit ») — distincte de `price`
+      // ci-dessus, qui est déjà résolue : sert à préremplir le formulaire admin (un champ vide
+      // doit rester vide, pas afficher le prix du produit comme si c'était celui de la variante).
+      priceOverride: variant.price,
+      promoPriceOverride: variant.promoPrice,
       effectivePrice: variantPricing.effectivePrice,
       discountPercentage: variantPricing.discountPercentage,
       onSale: variantPricing.onSale,

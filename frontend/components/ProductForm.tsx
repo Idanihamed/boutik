@@ -20,6 +20,30 @@ interface AttributeItem {
   value: string;
 }
 
+interface VariantRow {
+  option1Value: string;
+  option2Value: string;
+  sku: string;
+  price: string;
+  promoPrice: string;
+  stock: string;
+  isActive: boolean;
+}
+
+/** Liste des valeurs distinctes, dans l'ordre d'apparition (ex. « S, M, L »). */
+function uniqueValues(values: string[]): string {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const v of values) {
+    const trimmed = v.trim();
+    if (trimmed && !seen.has(trimmed.toLowerCase())) {
+      seen.add(trimmed.toLowerCase());
+      result.push(trimmed);
+    }
+  }
+  return result.join(', ');
+}
+
 /** Garantit exactement une image principale (la première si aucune n'est choisie). */
 function withMain(images: ImageItem[]): ImageItem[] {
   if (images.length === 0) return images;
@@ -64,6 +88,51 @@ export function ProductForm({ product, onSaved }: { product?: Product; onSaved: 
   const [attributes, setAttributes] = useState<AttributeItem[]>(
     (product?.attributes ?? []).map((a) => ({ key: a.key, value: a.value })),
   );
+
+  // ---------- Variantes (taille, couleur...) ----------
+  const [hasVariants, setHasVariants] = useState(product?.hasVariants ?? false);
+  const [variantOption1Name, setVariantOption1Name] = useState(product?.variantOption1Name ?? '');
+  const [variantOption2Name, setVariantOption2Name] = useState(product?.variantOption2Name ?? '');
+  const [variants, setVariants] = useState<VariantRow[]>(
+    (product?.variants ?? []).map((v) => ({
+      option1Value: v.option1Value ?? '',
+      option2Value: v.option2Value ?? '',
+      sku: v.sku ?? '',
+      // Vide = « hérite du prix du produit » : on ne préremplit que si la variante a SON PROPRE prix.
+      price: v.priceOverride != null ? String(v.priceOverride) : '',
+      promoPrice: v.promoPriceOverride != null ? String(v.promoPriceOverride) : '',
+      stock: String(v.stock),
+      isActive: v.isActive,
+    })),
+  );
+  const [option1Values, setOption1Values] = useState(uniqueValues((product?.variants ?? []).map((v) => v.option1Value ?? '')));
+  const [option2Values, setOption2Values] = useState(uniqueValues((product?.variants ?? []).map((v) => v.option2Value ?? '')));
+
+  /**
+   * (Re)génère la liste des variantes à partir des valeurs saisies pour chaque dimension (ex.
+   * « S, M, L »), en croisant les deux listes si une deuxième dimension est utilisée. Une variante
+   * déjà présente (même combinaison de valeurs) garde son stock et son prix ; seule une nouvelle
+   * combinaison démarre à 0. Une combinaison retirée de la liste disparaît du tableau.
+   */
+  function generateVariants() {
+    const values1 = option1Values.split(',').map((v) => v.trim()).filter(Boolean);
+    const values2 = variantOption2Name.trim()
+      ? option2Values.split(',').map((v) => v.trim()).filter(Boolean)
+      : [''];
+    if (values1.length === 0) return;
+
+    setVariants((current) => {
+      const byKey = new Map(current.map((v) => [`${v.option1Value.toLowerCase()}::${v.option2Value.toLowerCase()}`, v]));
+      const next: VariantRow[] = [];
+      for (const v1 of values1) {
+        for (const v2 of values2) {
+          const key = `${v1.toLowerCase()}::${v2.toLowerCase()}`;
+          next.push(byKey.get(key) ?? { option1Value: v1, option2Value: v2, sku: '', price: '', promoPrice: '', stock: '0', isActive: true });
+        }
+      }
+      return next;
+    });
+  }
 
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +187,29 @@ export function ProductForm({ product, onSaved }: { product?: Product; onSaved: 
       return;
     }
 
+    if (hasVariants) {
+      if (!variantOption1Name.trim()) {
+        setError('Indiquez le nom de la première dimension (par exemple « Taille »).');
+        return;
+      }
+      if (variants.length === 0) {
+        setError('Générez au moins une variante avant d’enregistrer (saisissez ses valeurs, puis « Générer »).');
+        return;
+      }
+      for (const v of variants) {
+        const label = [v.option1Value, v.option2Value].filter(Boolean).join(' · ');
+        const vStock = Number(v.stock);
+        if (v.stock.trim() === '' || !Number.isInteger(vStock) || vStock < 0) {
+          setError(`Indiquez un stock valide pour la variante « ${label} ».`);
+          return;
+        }
+        if (v.price.trim() && v.promoPrice.trim() && toInt(v.promoPrice) >= toInt(v.price)) {
+          setError(`Le prix promo de la variante « ${label} » doit être inférieur à son prix.`);
+          return;
+        }
+      }
+    }
+
     // À la création, un champ vide est simplement omis ; à la modification, il est envoyé vide
     // pour EFFACER l'ancienne valeur.
     const text = (value: string) => (isEdit ? value.trim() : value.trim() || undefined);
@@ -130,7 +222,7 @@ export function ProductForm({ product, onSaved }: { product?: Product; onSaved: 
       description: text(description),
       price: priceValue,
       promoPrice: isEdit ? promoValue : (promoValue ?? undefined),
-      stock: toInt(stock),
+      stock: hasVariants ? 0 : toInt(stock),
       lowStockThreshold: toInt(lowStockThreshold),
       warranty: text(warranty),
       isFeatured,
@@ -144,6 +236,22 @@ export function ProductForm({ product, onSaved }: { product?: Product; onSaved: 
       attributes: attributes
         .filter((a) => a.key.trim())
         .map((a, i) => ({ key: a.key.trim(), value: a.value.trim(), sortOrder: i })),
+      hasVariants,
+      ...(hasVariants
+        ? {
+            variantOption1Name: variantOption1Name.trim(),
+            variantOption2Name: variantOption2Name.trim() || undefined,
+            variants: variants.map((v) => ({
+              option1Value: v.option1Value,
+              option2Value: v.option2Value || undefined,
+              sku: v.sku.trim() || undefined,
+              price: v.price.trim() === '' ? null : toInt(v.price),
+              promoPrice: v.promoPrice.trim() === '' ? null : toInt(v.promoPrice),
+              stock: toInt(v.stock),
+              isActive: v.isActive,
+            })),
+          }
+        : {}),
     };
 
     setBusy(true);
@@ -216,31 +324,161 @@ export function ProductForm({ product, onSaved }: { product?: Product; onSaved: 
       <Card className="space-y-4">
         <h2 className="text-lg font-semibold text-slate-900">Prix et stock</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={`Prix (${currencyLabel(currency)})`} htmlFor="p-price">
+          <Field
+            label={`Prix (${currencyLabel(currency)})`}
+            htmlFor="p-price"
+            hint={hasVariants ? 'Utilisé pour une variante qui n’a pas son propre prix.' : undefined}
+          >
             <Input id="p-price" type="number" inputMode="numeric" min={0} step={1} required value={price} onChange={(e) => setPrice(e.target.value)} />
           </Field>
           <Field label={`Prix promotionnel (${currencyLabel(currency)}, facultatif)`} htmlFor="p-promo">
             <Input id="p-promo" type="number" inputMode="numeric" min={0} step={1} value={promoPrice} onChange={(e) => setPromoPrice(e.target.value)} />
           </Field>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {isEdit ? (
-            <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-              Stock actuel : <strong>{product?.stock}</strong>. Pour le modifier, utilisez « Ajuster le stock » sur la fiche
-              du produit.
-            </p>
-          ) : (
-            <Field label="Stock initial" htmlFor="p-stock">
-              <Input id="p-stock" type="number" inputMode="numeric" min={0} step={1} value={stock} onChange={(e) => setStock(e.target.value)} />
+        {!hasVariants && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {isEdit ? (
+              <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+                Stock actuel : <strong>{product?.stock}</strong>. Pour le modifier, utilisez « Ajuster le stock » sur la
+                fiche du produit.
+              </p>
+            ) : (
+              <Field label="Stock initial" htmlFor="p-stock">
+                <Input id="p-stock" type="number" inputMode="numeric" min={0} step={1} value={stock} onChange={(e) => setStock(e.target.value)} />
+              </Field>
+            )}
+            <Field label="Alerte de stock faible à partir de" htmlFor="p-threshold">
+              <Input id="p-threshold" type="number" inputMode="numeric" min={0} step={1} value={lowStockThreshold} onChange={(e) => setLowStockThreshold(e.target.value)} />
             </Field>
-          )}
-          <Field label="Alerte de stock faible à partir de" htmlFor="p-threshold">
+          </div>
+        )}
+        {hasVariants && (
+          <Field label="Alerte de stock faible à partir de" htmlFor="p-threshold" hint="S’applique au stock total (toutes variantes confondues).">
             <Input id="p-threshold" type="number" inputMode="numeric" min={0} step={1} value={lowStockThreshold} onChange={(e) => setLowStockThreshold(e.target.value)} />
           </Field>
-        </div>
+        )}
         <Field label="Garantie (facultatif)" htmlFor="p-warranty">
           <Input id="p-warranty" placeholder="Ex. 12 mois" value={warranty} onChange={(e) => setWarranty(e.target.value)} />
         </Field>
+      </Card>
+
+      <Card className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-slate-900">Variantes (taille, couleur...)</h2>
+        </div>
+        <Checkbox
+          id="p-has-variants"
+          label="Ce produit existe en plusieurs tailles, couleurs..."
+          hint="Chaque variante a son propre stock, et peut avoir son propre prix."
+          checked={hasVariants}
+          onChange={(checked) => {
+            setHasVariants(checked);
+            if (!checked) setVariants([]);
+          }}
+        />
+        {hasVariants && (
+          <div className="space-y-4 border-t border-slate-100 pt-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Nom de la 1ère dimension" htmlFor="p-opt1-name" hint="Par exemple « Taille ».">
+                <Input id="p-opt1-name" required value={variantOption1Name} onChange={(e) => setVariantOption1Name(e.target.value)} />
+              </Field>
+              <Field label="Valeurs, séparées par des virgules" htmlFor="p-opt1-values" hint="Par exemple : S, M, L">
+                <Input id="p-opt1-values" value={option1Values} onChange={(e) => setOption1Values(e.target.value)} />
+              </Field>
+              <Field label="Nom de la 2e dimension (facultatif)" htmlFor="p-opt2-name" hint="Par exemple « Couleur ».">
+                <Input id="p-opt2-name" value={variantOption2Name} onChange={(e) => setVariantOption2Name(e.target.value)} />
+              </Field>
+              <Field label="Valeurs, séparées par des virgules" htmlFor="p-opt2-values" hint="Par exemple : Rouge, Bleu">
+                <Input
+                  id="p-opt2-values"
+                  disabled={!variantOption2Name.trim()}
+                  value={option2Values}
+                  onChange={(e) => setOption2Values(e.target.value)}
+                />
+              </Field>
+            </div>
+            <Button type="button" variant="secondary" onClick={generateVariants}>
+              {variants.length > 0 ? 'Regénérer les variantes' : 'Générer les variantes'}
+            </Button>
+            {variants.length > 0 && (
+              <ul className="space-y-3">
+                {variants.map((v, i) => {
+                  const label = [v.option1Value, v.option2Value].filter(Boolean).join(' · ');
+                  return (
+                    <li key={`${v.option1Value}::${v.option2Value}`} className="rounded-lg border border-slate-200 p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="font-medium text-slate-900">{label}</p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="min-h-[36px] px-2 text-red-700 hover:bg-red-50"
+                          onClick={() => setVariants((cur) => cur.filter((_, idx) => idx !== i))}
+                        >
+                          Retirer
+                        </Button>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-4">
+                        <Field label="Stock" htmlFor={`v-stock-${i}`}>
+                          <Input
+                            id={`v-stock-${i}`}
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            step={1}
+                            required
+                            value={v.stock}
+                            onChange={(e) => setVariants((cur) => cur.map((r, idx) => (idx === i ? { ...r, stock: e.target.value } : r)))}
+                          />
+                        </Field>
+                        <Field label={`Prix (${currencyLabel(currency)})`} htmlFor={`v-price-${i}`} hint="Vide = prix du produit">
+                          <Input
+                            id={`v-price-${i}`}
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            step={1}
+                            value={v.price}
+                            onChange={(e) => setVariants((cur) => cur.map((r, idx) => (idx === i ? { ...r, price: e.target.value } : r)))}
+                          />
+                        </Field>
+                        <Field label="Prix promo (facultatif)" htmlFor={`v-promo-${i}`}>
+                          <Input
+                            id={`v-promo-${i}`}
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            step={1}
+                            value={v.promoPrice}
+                            onChange={(e) => setVariants((cur) => cur.map((r, idx) => (idx === i ? { ...r, promoPrice: e.target.value } : r)))}
+                          />
+                        </Field>
+                        <Field label="Référence (facultatif)" htmlFor={`v-sku-${i}`}>
+                          <Input
+                            id={`v-sku-${i}`}
+                            value={v.sku}
+                            onChange={(e) => setVariants((cur) => cur.map((r, idx) => (idx === i ? { ...r, sku: e.target.value } : r)))}
+                          />
+                        </Field>
+                      </div>
+                      <div className="mt-2">
+                        <Checkbox
+                          id={`v-active-${i}`}
+                          label="Visible sur la vitrine"
+                          checked={v.isActive}
+                          onChange={(checked) => setVariants((cur) => cur.map((r, idx) => (idx === i ? { ...r, isActive: checked } : r)))}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <p className="text-xs text-slate-500">
+              Une variante retirée d’ici, ou une nouvelle valeur ajoutée puis régénérée, ne réapparaît qu’en cliquant de
+              nouveau sur « Générer les variantes ».
+            </p>
+          </div>
+        )}
       </Card>
 
       <Card className="space-y-4">

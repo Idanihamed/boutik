@@ -219,6 +219,8 @@ export const setProductPublication = (id: string, action: 'publish' | 'unpublish
 export const duplicateProduct = (id: string) => request<Product>(`/admin/products/${id}/duplicate`, send('POST'));
 export const adjustProductStock = (id: string, delta: number) =>
   request<Product>(`/admin/products/${id}/stock`, send('PATCH', { delta }));
+export const adjustVariantStock = (productId: string, variantId: string, delta: number) =>
+  request<Product>(`/admin/products/${productId}/variants/${variantId}/stock`, send('PATCH', { delta }));
 
 // ---------- Espace du responsable : commandes, messages, paramètres ----------
 
