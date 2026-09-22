@@ -46,6 +46,9 @@ export function StoreFooter({ store }: { store: Storefront }) {
           © {new Date().getFullYear()} {store.name} · Propulsé par <Link href="/" className="font-medium hover:underline">Boutik</Link>
         </span>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Link href="/mentions-legales" className="hover:underline">
+            Mentions légales
+          </Link>
           <Link href="/conditions" className="hover:underline">
             Conditions
           </Link>

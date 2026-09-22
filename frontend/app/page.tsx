@@ -98,6 +98,9 @@ export default async function HomePage() {
       )}
 
       <p className="flex flex-wrap justify-center gap-4 pb-4 text-[13px] text-slate-500">
+        <Link href="/mentions-legales" className="hover:underline">
+          Mentions légales
+        </Link>
         <Link href="/conditions" className="hover:underline">
           Conditions d’utilisation
         </Link>

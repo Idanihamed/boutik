@@ -18,6 +18,9 @@ export function LegalDocument({
       </header>
       <div className="space-y-6 leading-relaxed">{children}</div>
       <footer className="flex flex-wrap gap-4 border-t border-slate-200 pt-4 text-sm">
+        <Link href="/mentions-legales" className="text-brand-700 hover:underline">
+          Mentions légales
+        </Link>
         <Link href="/conditions" className="text-brand-700 hover:underline">
           Conditions d’utilisation
         </Link>
