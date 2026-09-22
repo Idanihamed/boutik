@@ -227,6 +227,7 @@ model User {
   refreshTokens RefreshToken[]
   pushTokens    PushToken[]
   reports       BusinessReport[]
+  orders        Order[]
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
@@ -611,12 +612,15 @@ model Order {
   // (même mécanisme que ContactMessage.reference — voir common/utils/reference.util.ts).
   reference  String
 
-  // Pas de compte client (achat "invité", comme le formulaire de contact) : les coordonnées
-  // sont saisies à chaque commande plutôt que liées à un modèle Customer séparé — cohérent
-  // avec l'absence de compte utilisateur côté site public dans cette phase.
+  // Achat possible "invité" (les coordonnées sont saisies à chaque commande) ou, si le client
+  // est connecté au moment de commander, rattaché à son compte (customerId) pour apparaître
+  // dans son historique — jamais imposé : customerId est déduit du jeton de session côté
+  // serveur, jamais transmis par le client (voir OrdersService.create).
   customerName    String
   customerContact String
   customerAddress String?
+  customerId      String?
+  customer        User?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   // Retrait en boutique optionnel (§5.8) ; onDelete SetNull plutôt que Cascade — supprimer une
   // boutique ne doit jamais supprimer l'historique des commandes qui y étaient rattachées.
@@ -644,6 +648,7 @@ model Order {
   @@unique([businessId, reference])
   @@index([status])
   @@index([businessId])
+  @@index([customerId])
   @@map("orders")
 }
 

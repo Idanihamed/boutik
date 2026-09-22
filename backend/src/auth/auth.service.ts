@@ -8,6 +8,8 @@ import { ActivityLogService } from '../activity-log/activity-log.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { JwtAccessPayload, JwtRefreshPayload } from './types/authenticated-user.type';
+import { ACCESS_TOKEN_COOKIE } from './cookies';
+import type { Request } from 'express';
 
 export interface TokenPair {
   accessToken: string;
@@ -223,6 +225,27 @@ export class AuthService {
       });
     } catch {
       // Token déjà invalide ou expiré : rien à faire, la déconnexion est idempotente.
+    }
+  }
+
+  /**
+   * Compte connecté au moment d'une requête PUBLIQUE (ex. passer une commande), sans jamais
+   * exiger de session : un jeton absent, expiré ou invalide renvoie simplement `null` plutôt
+   * que de faire échouer l'action. Utilisé pour rattacher une commande à son auteur quand il
+   * est connecté, sans transformer le passage de commande en route protégée.
+   */
+  tryGetCurrentUser(req: Request): { id: string; role: string } | null {
+    const token =
+      req.cookies?.[ACCESS_TOKEN_COOKIE] ??
+      (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+    if (!token) return null;
+    try {
+      const payload = this.jwtService.verify<JwtAccessPayload>(token, {
+        secret: this.config.get<string>('JWT_ACCESS_SECRET'),
+      });
+      return { id: payload.sub, role: payload.role };
+    } catch {
+      return null;
     }
   }
 

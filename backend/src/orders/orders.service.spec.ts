@@ -5,6 +5,7 @@ import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { PromotionsService } from '../promotions/promotions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { tenantStorage } from '../tenancy/tenant-context';
 import { CreateOrderDto } from './dto/create-order.dto';
 
@@ -83,6 +84,7 @@ describe('OrdersService.create', () => {
       notificationsService as unknown as NotificationsService,
       mailService as unknown as MailService,
       promoCodesService as unknown as PromoCodesService,
+      {} as PrismaService,
     );
 
     prisma.order.create.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
@@ -95,6 +97,18 @@ describe('OrdersService.create', () => {
     expect(result).toEqual({ success: true });
     expect(prisma.product.findMany).not.toHaveBeenCalled();
     expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
+  describe('rattachement au compte client', () => {
+    it('rattache la commande au compte du client connecté (customerId)', async () => {
+      await service.create(buildDto(), undefined, 'customer-1');
+      expect(prisma.order.create.mock.calls[0][0].data).toMatchObject({ customerId: 'customer-1' });
+    });
+
+    it('un achat invité (sans compte connecté) n’enregistre aucun customerId', async () => {
+      await service.create(buildDto());
+      expect(prisma.order.create.mock.calls[0][0].data.customerId).toBeUndefined();
+    });
   });
 
   it('rejette une commande contenant deux fois le même produit', async () => {
@@ -327,10 +341,85 @@ describe('OrdersService.findByReference', () => {
       {} as NotificationsService,
       {} as MailService,
       {} as PromoCodesService,
+      {} as PrismaService,
     );
 
     await expect(service.findByReference('ABC12345', 'mauvais-contact@example.com')).rejects.toThrow(
       'Aucune commande trouvée avec cette référence et ce contact.',
     );
+  });
+});
+
+describe('OrdersService.findMineList / findMineOne (historique du client)', () => {
+  let service: OrdersService;
+  let rawPrisma: { order: { findMany: jest.Mock; count: jest.Mock; findFirst: jest.Mock }; $transaction: jest.Mock };
+
+  beforeEach(() => {
+    rawPrisma = {
+      order: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0), findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn(async (queries: Promise<unknown>[]) => Promise.all(queries)),
+    };
+    service = new OrdersService(
+      {} as TenantPrisma,
+      {} as PromotionsService,
+      {} as NotificationsService,
+      {} as MailService,
+      {} as PromoCodesService,
+      rawPrisma as unknown as PrismaService,
+    );
+  });
+
+  it('findMineList interroge le Prisma NON isolé par entreprise, filtré par customerId', async () => {
+    await service.findMineList('customer-1', 1, 20);
+    const [findManyArgs] = rawPrisma.order.findMany.mock.calls[0];
+    expect(findManyArgs.where).toEqual({ customerId: 'customer-1' });
+    expect(rawPrisma.order.count).toHaveBeenCalledWith({ where: { customerId: 'customer-1' } });
+  });
+
+  it('findMineList résume chaque commande (référence, entreprise, quantité totale)', async () => {
+    rawPrisma.order.findMany.mockResolvedValue([
+      {
+        id: 'o1',
+        reference: 'REF1',
+        status: 'CONFIRMEE',
+        totalAmount: 15000,
+        items: [{ quantity: 2 }, { quantity: 1 }],
+        business: { name: 'Chez Awa', slug: 'chez-awa' },
+        createdAt: new Date('2026-01-01'),
+      },
+    ]);
+    rawPrisma.order.count.mockResolvedValue(1);
+    const res = await service.findMineList('customer-1', 1, 20);
+    expect(res.data).toEqual([
+      {
+        id: 'o1',
+        reference: 'REF1',
+        status: 'CONFIRMEE',
+        totalAmount: 15000,
+        itemCount: 3,
+        business: { name: 'Chez Awa', slug: 'chez-awa' },
+        createdAt: new Date('2026-01-01'),
+      },
+    ]);
+    expect(res.meta).toEqual({ page: 1, limit: 20, total: 1, totalPages: 1 });
+  });
+
+  it('findMineOne filtre par id ET customerId (impossible de voir la commande d’un autre)', async () => {
+    await expect(service.findMineOne('customer-1', 'order-of-someone-else')).rejects.toThrow('Commande introuvable.');
+    expect(rawPrisma.order.findFirst.mock.calls[0][0].where).toEqual({ id: 'order-of-someone-else', customerId: 'customer-1' });
+  });
+
+  it('findMineOne renvoie le détail complet, avec le nom de l’entreprise', async () => {
+    rawPrisma.order.findFirst.mockResolvedValue({
+      id: 'o1', reference: 'REF1', status: 'LIVREE', totalAmount: 11500, discountAmount: 1000, shippingFee: 1500,
+      promoCode: 'BIENVENUE10', customerAddress: 'Riviera 2', boutique: null,
+      business: { name: 'Chez Awa', slug: 'chez-awa', currency: 'XOF' },
+      createdAt: new Date('2026-01-01'),
+      items: [{ productName: 'Chapeau', unitPrice: 5000, quantity: 2, subtotal: 10000 }],
+    });
+    const res = await service.findMineOne('customer-1', 'o1');
+    expect(res.business).toEqual({ name: 'Chez Awa', slug: 'chez-awa', currency: 'XOF' });
+    expect(res.items).toEqual([{ productName: 'Chapeau', unitPrice: 5000, quantity: 2, subtotal: 10000 }]);
+    expect(res.discountAmount).toBe(1000);
   });
 });

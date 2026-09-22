@@ -1,6 +1,7 @@
 import { BadRequestException, HttpException, HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { TENANT_PRISMA, TenantPrisma } from '../tenancy/tenant-prisma';
+import { PrismaService } from '../prisma/prisma.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { PromotionsService } from '../promotions/promotions.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -36,6 +37,9 @@ export class OrdersService {
     private readonly notificationsService: NotificationsService,
     private readonly mailService: MailService,
     private readonly promoCodesService: PromoCodesService,
+    // Requêtes HORS contexte d'entreprise (l'historique d'un client traverse toutes les
+    // entreprises où il a commandé) : le client Prisma normal, jamais celui isolé par tenant.
+    private readonly rawPrisma: PrismaService,
   ) {}
 
   /** Nom et devise de l'entreprise courante (pour les messages envoyés à ses clients). */
@@ -150,7 +154,7 @@ export class OrdersService {
 
   // ---------- Public ----------
 
-  async create(dto: CreateOrderDto, ipAddress?: string) {
+  async create(dto: CreateOrderDto, ipAddress?: string, customerId?: string) {
     if (dto.website) {
       // Piège à bots rempli : voir ContactMessagesService.create pour le même mécanisme.
       return { success: true };
@@ -222,6 +226,7 @@ export class OrdersService {
           discountAmount: discount,
           shippingFee,
           promoCode: promoText && promoCheck?.valid ? promoText : null,
+          customerId,
           ipAddress,
           items: { create: lines },
         },
@@ -296,6 +301,63 @@ export class OrdersService {
       promoCode: order.promoCode,
       customerAddress: order.customerAddress,
       boutique: order.boutique ? { name: order.boutique.name, address: order.boutique.address } : null,
+      createdAt: order.createdAt,
+      items: order.items.map((item) => ({
+        productName: item.productName,
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+      })),
+    };
+  }
+
+  // ---------- Compte client ----------
+
+  /** Historique des commandes d'un client connecté, TOUTES entreprises confondues. */
+  async findMineList(customerId: string, page: number, limit: number) {
+    const where: Prisma.OrderWhereInput = { customerId };
+    const [items, total] = await this.rawPrisma.$transaction([
+      this.rawPrisma.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { business: { select: { name: true, slug: true } }, items: true },
+      }),
+      this.rawPrisma.order.count({ where }),
+    ]);
+    return {
+      data: items.map((order) => ({
+        id: order.id,
+        reference: order.reference,
+        status: order.status,
+        totalAmount: order.totalAmount,
+        itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+        business: order.business,
+        createdAt: order.createdAt,
+      })),
+      meta: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+    };
+  }
+
+  /** Détail d'une commande de l'historique du client — jamais celle d'un autre (filtrée par customerId). */
+  async findMineOne(customerId: string, id: string) {
+    const order = await this.rawPrisma.order.findFirst({
+      where: { id, customerId },
+      include: { items: true, boutique: true, business: { select: { name: true, slug: true, currency: true } } },
+    });
+    if (!order) throw new NotFoundException('Commande introuvable.');
+    return {
+      id: order.id,
+      reference: order.reference,
+      status: order.status,
+      totalAmount: order.totalAmount,
+      discountAmount: order.discountAmount,
+      shippingFee: order.shippingFee,
+      promoCode: order.promoCode,
+      customerAddress: order.customerAddress,
+      boutique: order.boutique ? { name: order.boutique.name, address: order.boutique.address } : null,
+      business: order.business,
       createdAt: order.createdAt,
       items: order.items.map((item) => ({
         productName: item.productName,
