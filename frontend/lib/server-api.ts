@@ -1,4 +1,4 @@
-import type { ActivePromotion, Boutique, ContentPage, DirectoryEntry, Paginated, Product, PublicCategory, Storefront } from './types';
+import type { ActivePromotion, Article, Boutique, ContentPage, DirectoryEntry, Paginated, Product, PublicCategory, Storefront } from './types';
 
 // Appels faits CÔTÉ SERVEUR (rendu des pages publiques, pour le référencement et le partage) :
 // directs vers l'API, sans passer par le relais /api du navigateur.
@@ -54,6 +54,18 @@ export const getContentPage = (slug: string, pageSlug: string) =>
 /** Slugs des pages publiées d'une entreprise (pour son pied de page et son plan du site). */
 export const getContentPageSlugs = (slug: string) =>
   storefrontGet<{ slug: string; title: string; updatedAt: string }[]>(slug, '/pages');
+
+/** Actualités publiées d'une entreprise, paginées (§20). */
+export function getArticles(slug: string, params: { category?: string; page?: number; limit?: number } = {}) {
+  const query = new URLSearchParams();
+  if (params.category) query.set('category', params.category);
+  query.set('page', String(params.page ?? 1));
+  query.set('limit', String(params.limit ?? 12));
+  return storefrontGet<Paginated<Article>>(slug, `/actualites?${query}`);
+}
+
+export const getArticle = (slug: string, articleSlug: string) =>
+  storefrontGet<Article>(slug, `/actualites/${encodeURIComponent(articleSlug)}`);
 
 /** Annuaire des entreprises (public). Renvoie une liste vide si l'API ne répond pas : la page reste affichable. */
 export async function getDirectory(params: { search?: string; country?: string; page?: number; limit?: number }) {

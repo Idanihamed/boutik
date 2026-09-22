@@ -106,6 +106,22 @@ export interface ContentPage {
   updatedAt: string;
 }
 
+export interface Article {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  image: string | null;
+  author: string | null;
+  category: string | null;
+  publishedAt: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  status: ProductStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ProductImage {
   id?: string;
   url: string;

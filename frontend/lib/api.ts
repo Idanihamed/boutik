@@ -1,5 +1,6 @@
 import type {
   AppNotification,
+  Article,
   AuthUser,
   Boutique,
   BoutiqueInput,
@@ -239,6 +240,33 @@ export const updatePage = (id: string, input: Partial<PageInput>) =>
 export const deletePage = (id: string) => request(`/admin/pages/${id}`, send('DELETE'));
 export const setPagePublication = (id: string, action: 'publish' | 'unpublish') =>
   request<ContentPage>(`/admin/pages/${id}/${action}`, send('PATCH'));
+
+export type ArticleInput = {
+  title: string;
+  content: string;
+  image?: string;
+  author?: string;
+  category?: string;
+  publishedAt?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  status?: ProductStatus;
+};
+export function listArticles(params: { search?: string; status?: ProductStatus; page?: number }) {
+  const query = new URLSearchParams();
+  if (params.search) query.set('search', params.search);
+  if (params.status) query.set('status', params.status);
+  query.set('page', String(params.page ?? 1));
+  query.set('limit', '20');
+  return request<Paginated<Article>>(`/admin/articles?${query}`);
+}
+export const getArticle = (id: string) => request<Article>(`/admin/articles/${id}`);
+export const createArticle = (input: ArticleInput) => request<Article>('/admin/articles', send('POST', input));
+export const updateArticle = (id: string, input: Partial<ArticleInput>) =>
+  request<Article>(`/admin/articles/${id}`, send('PATCH', input));
+export const deleteArticle = (id: string) => request(`/admin/articles/${id}`, send('DELETE'));
+export const setArticlePublication = (id: string, action: 'publish' | 'unpublish') =>
+  request<Article>(`/admin/articles/${id}/${action}`, send('PATCH'));
 
 // ---------- Espace du responsable : commandes, messages, paramètres ----------
 

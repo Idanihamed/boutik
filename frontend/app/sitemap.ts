@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '../lib/site';
-import { getContentPageSlugs, getDirectory } from '../lib/server-api';
+import { getArticles, getContentPageSlugs, getDirectory } from '../lib/server-api';
 
 // Le plan du site est recalculé au plus une fois par heure : une nouvelle boutique y apparaît sans redéploiement.
 export const revalidate = 3600;
@@ -27,6 +27,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const ownPages = await getContentPageSlugs(shop.slug).catch(() => null);
       for (const p of ownPages ?? []) {
         pages.push({ url: `${SITE_URL}/${shop.slug}/${p.slug}`, lastModified: new Date(p.updatedAt) });
+      }
+      // Ses actualités publiées : même principe, jamais bloquant.
+      const articles = await getArticles(shop.slug, { limit: 100 }).catch(() => null);
+      if (articles && articles.data.length > 0) {
+        pages.push({ url: `${SITE_URL}/${shop.slug}/actualites`, lastModified: now });
+        for (const a of articles.data) {
+          pages.push({ url: `${SITE_URL}/${shop.slug}/actualites/${a.slug}`, lastModified: new Date(a.updatedAt) });
+        }
       }
     }
     if (page >= result.meta.totalPages) break;

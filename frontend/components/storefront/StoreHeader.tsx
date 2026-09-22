@@ -15,6 +15,7 @@ export function StoreHeader() {
   const links = [
     { href: base, label: 'Accueil', exact: true },
     { href: `${base}/produits`, label: 'Produits' },
+    { href: `${base}/actualites`, label: 'Actualités' },
     { href: `${base}/boutiques`, label: 'Nos boutiques' },
     { href: `${base}/contact`, label: 'Contact' },
     { href: `${base}/suivi`, label: 'Suivi de commande' },
