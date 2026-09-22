@@ -5,6 +5,7 @@ import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { ReportsService } from '../reports/reports.service';
 import { ModerateBusinessDto, QueryPlatformBusinessesDto, QueryPlatformReportsDto, UpdateReportDto } from './dto/platform.dto';
 import { ModerationAction, PlatformBusinessesService } from './platform-businesses.service';
+import { PlatformStatsService } from './platform-stats.service';
 
 /**
  * Espace de modération de la plateforme : réservé aux comptes PLATFORM_ADMIN (les permissions
@@ -15,7 +16,14 @@ export class PlatformController {
   constructor(
     private readonly businessesService: PlatformBusinessesService,
     private readonly reportsService: ReportsService,
+    private readonly statsService: PlatformStatsService,
   ) {}
+
+  @RequirePermissions('businesses:read')
+  @Get('stats')
+  stats() {
+    return this.statsService.get();
+  }
 
   @RequirePermissions('businesses:read')
   @Get('businesses')

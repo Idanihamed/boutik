@@ -322,7 +322,7 @@ export class OrdersService {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
-        include: { business: { select: { name: true, slug: true } }, items: true },
+        include: { business: { select: { name: true, slug: true, currency: true } }, items: true },
       }),
       this.rawPrisma.order.count({ where }),
     ]);
