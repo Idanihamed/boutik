@@ -5,10 +5,13 @@ import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { configureApp } from './configure-app';
+import { initSentry } from './monitoring/sentry.util';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
+
+  initSentry(config);
 
   // Échec rapide et explicite si les secrets JWT ne sont pas configurés, plutôt qu'un
   // plantage confus (et un 500 générique) au tout premier login/refresh — jsonwebtoken

@@ -1,9 +1,11 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { HttpAdapterHost } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { PrismaService } from './prisma/prisma.service';
+import { SentryExceptionFilter } from './monitoring/sentry-exception.filter';
 import { createTenantSlugMiddleware } from './tenancy/tenant-slug.middleware';
 
 /**
@@ -51,4 +53,9 @@ export function configureApp(app: NestExpressApplication, config: ConfigService)
       transformOptions: { enableImplicitConversion: true },
     }),
   );
+
+  // Signale à Sentry toute erreur 500 (voir sentry-exception.filter.ts) sans changer la
+  // réponse envoyée au client — no-op tant que SENTRY_DSN n'est pas configurée.
+  const { httpAdapter } = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new SentryExceptionFilter(httpAdapter));
 }

@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Figtree } from 'next/font/google';
 import './globals.css';
 import { SessionProvider } from '../lib/session';
 import { Header } from '../components/Header';
+import { SentryInit } from '../components/SentryInit';
 
 // Polices de l'identité Boutik : Figtree pour le texte, Bricolage Grotesque pour les titres.
 const bodyFont = Figtree({ subsets: ['latin'], variable: '--font-body', display: 'swap' });
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr">
       <body className={`${bodyFont.variable} ${displayFont.variable} font-sans`}>
+        <SentryInit />
         <SessionProvider>
           <Header />
           <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-10">{children}</main>
