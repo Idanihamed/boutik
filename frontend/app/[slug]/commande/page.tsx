@@ -56,7 +56,7 @@ export default function CheckoutPage() {
       request<OrderQuote>(`/b/${store.slug}/orders/quote`, {
         method: 'POST',
         body: JSON.stringify({
-          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          items: items.map((i) => ({ productId: i.productId, variantId: i.variantId ?? undefined, quantity: i.quantity })),
           boutiqueId: pickup ? boutiqueId : undefined,
           promoCode: promoCode ?? undefined,
         }),
@@ -141,7 +141,7 @@ export default function CheckoutPage() {
           promoCode: code ?? undefined,
           notes: notes.trim() || undefined,
           website: website || undefined,
-          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          items: items.map((i) => ({ productId: i.productId, variantId: i.variantId ?? undefined, quantity: i.quantity })),
         }),
       });
       if (res.reference) {
@@ -291,9 +291,10 @@ export default function CheckoutPage() {
         <h2 className="font-semibold text-slate-900">Récapitulatif</h2>
         <ul className="divide-y divide-slate-100 text-sm">
           {items.map((i) => (
-            <li key={i.productId} className="flex justify-between gap-2 py-2">
+            <li key={`${i.productId}::${i.variantId ?? ''}`} className="flex justify-between gap-2 py-2">
               <span className="min-w-0 truncate">
                 {i.quantity} × {i.name}
+                {i.variantLabel ? ` (${i.variantLabel})` : ''}
               </span>
               <span className="shrink-0 font-medium">{formatPrice(i.price * i.quantity, store.currency)}</span>
             </li>

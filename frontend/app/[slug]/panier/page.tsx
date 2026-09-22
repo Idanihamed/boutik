@@ -30,7 +30,7 @@ export default function CartPage() {
       <h1 className="text-2xl font-bold text-slate-900">Votre panier</h1>
       <ul className="space-y-3">
         {items.map((item) => (
-          <li key={item.productId}>
+          <li key={`${item.productId}::${item.variantId ?? ''}`}>
             <Card className="flex gap-3">
               {item.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -42,6 +42,7 @@ export default function CartPage() {
                 <Link href={`${base}/produits/${item.slug}`} className="block truncate font-medium text-slate-900 hover:underline">
                   {item.name}
                 </Link>
+                {item.variantLabel && <p className="text-xs text-slate-500">{item.variantLabel}</p>}
                 <p className="text-sm text-slate-600">{formatPrice(item.price, store.currency)}</p>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center rounded-lg border border-slate-300 bg-white">
@@ -50,7 +51,7 @@ export default function CartPage() {
                       aria-label={`Diminuer la quantité de ${item.name}`}
                       className="min-h-[44px] min-w-[44px] text-xl hover:bg-slate-50 disabled:opacity-40"
                       disabled={item.quantity <= 1}
-                      onClick={() => setQuantity(item.productId, item.quantity - 1)}
+                      onClick={() => setQuantity(item.productId, item.variantId, item.quantity - 1)}
                     >
                       −
                     </button>
@@ -60,12 +61,16 @@ export default function CartPage() {
                       aria-label={`Augmenter la quantité de ${item.name}`}
                       className="min-h-[44px] min-w-[44px] text-xl hover:bg-slate-50 disabled:opacity-40"
                       disabled={item.quantity >= item.maxStock}
-                      onClick={() => setQuantity(item.productId, item.quantity + 1)}
+                      onClick={() => setQuantity(item.productId, item.variantId, item.quantity + 1)}
                     >
                       +
                     </button>
                   </div>
-                  <button type="button" onClick={() => remove(item.productId)} className="min-h-[44px] px-2 text-sm text-red-700 hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => remove(item.productId, item.variantId)}
+                    className="min-h-[44px] px-2 text-sm text-red-700 hover:underline"
+                  >
                     Retirer
                   </button>
                 </div>
