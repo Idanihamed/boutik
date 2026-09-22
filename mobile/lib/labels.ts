@@ -1,12 +1,15 @@
 import type { MessageStatus, OrderStatus, StockStatus } from './types';
 
+// Identité Boutik : vert et crème, alignée sur le site (frontend/tailwind.config.ts).
 export const COLORS = {
-  brand: '#0f766e',
-  brandLight: '#ccfbf1',
-  text: '#0f172a',
-  muted: '#64748b',
-  border: '#e2e8f0',
-  background: '#f8fafc',
+  brand: '#0E6B57',
+  brandLight: '#DCEFE7',
+  accent: '#C2410C',
+  accentLight: '#FCE9DC',
+  text: '#1B1F1D',
+  muted: '#5A625D',
+  border: '#E8E0D3',
+  background: '#FAF6EF',
   card: '#ffffff',
   danger: '#b91c1c',
 } as const;
