@@ -31,17 +31,30 @@ export default async function StorefrontHome({ params }: { params: { slug: strin
   return (
     <div className="space-y-10">
       <section
-        className="relative overflow-hidden rounded-3xl bg-brand-700 px-6 py-12 text-white sm:py-16"
-        style={hero ? { backgroundImage: `linear-gradient(rgba(15,118,110,.75), rgba(15,118,110,.75)), url(${hero})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+        className={`relative overflow-hidden rounded-3xl ${hero ? 'bg-slate-200 px-4 py-10 sm:px-6 sm:py-14' : 'bg-brand-700 px-6 py-12 text-white sm:py-16'}`}
+        style={hero ? { backgroundImage: `url(${hero})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
       >
-        <h1 className="text-3xl font-bold sm:text-4xl">{store.name}</h1>
-        {store.description && <p className="mt-3 max-w-2xl text-base text-white/90 sm:text-lg">{store.description}</p>}
-        <Link
-          href={`/${slug}/produits`}
-          className="mt-6 inline-block rounded-lg bg-white px-5 py-3 text-sm font-semibold text-brand-700 hover:bg-brand-50"
-        >
-          Voir les produits
-        </Link>
+        {/*
+          Photo affichée telle quelle, sans filtre ni teinte dessus (demandé par l'utilisateur) :
+          la lisibilité du texte vient d'un bandeau blanc opaque posé SUR la photo, pas d'un
+          voile de couleur qui la recouvrirait entièrement.
+        */}
+        <div className={hero ? 'inline-block max-w-xl rounded-2xl bg-white p-5 shadow-lg sm:p-7' : ''}>
+          <h1 className={`text-3xl font-bold sm:text-4xl ${hero ? 'text-slate-900' : ''}`}>{store.name}</h1>
+          {store.description && (
+            <p className={`mt-3 max-w-2xl text-base sm:text-lg ${hero ? 'text-slate-600' : 'text-white/90'}`}>
+              {store.description}
+            </p>
+          )}
+          <Link
+            href={`/${slug}/produits`}
+            className={`mt-6 inline-block rounded-lg px-5 py-3 text-sm font-semibold ${
+              hero ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-white text-brand-700 hover:bg-brand-50'
+            }`}
+          >
+            Voir les produits
+          </Link>
+        </div>
       </section>
 
       {banner && (
