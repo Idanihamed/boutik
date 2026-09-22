@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { getDashboardStats } from '../../lib/api';
 import { useSession } from '../../lib/session';
+import { MobileNav } from '../../components/espace/MobileNav';
 import { Alert, Spinner } from '../../components/ui';
 
 const NAV = [
@@ -21,6 +23,9 @@ const NAV = [
   { href: '/espace/entreprise', label: 'Mon entreprise', permission: 'business:read' },
 ] as const;
 
+// Barre du bas (téléphone) : les rubriques du quotidien. Toutes les autres sont sous « Plus ».
+const MAIN_HREFS: string[] = ['/espace', '/espace/commandes', '/espace/produits', '/espace/messages'];
+
 /** Espace du personnel d'une entreprise : garde d'accès + navigation selon les permissions. */
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -34,20 +39,31 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
     else if (!user.businessId) router.replace('/');
   }, [loading, user, router]);
 
+  // Pastilles de la barre du bas : commandes et messages à traiter.
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!user?.business) return;
+    getDashboardStats()
+      .then((s) => setCounts({ '/espace/commandes': s.orders.pending, '/espace/messages': s.messages.untreated }))
+      .catch(() => setCounts({}));
+  }, [user, pathname]);
+
   if (loading || !user || !user.business) return <Spinner />;
 
   const { business } = user;
   const items = NAV.filter((item) => !item.permission || user.permissions.includes(item.permission));
+  const mainItems = items.filter((i) => MAIN_HREFS.includes(i.href)).map(({ href, label }) => ({ href, label }));
+  const moreItems = items.filter((i) => !MAIN_HREFS.includes(i.href)).map(({ href, label }) => ({ href, label }));
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-24 sm:pb-0">
       {business.status === 'PENDING' && (
         <Alert kind="info">
           <strong>{business.name}</strong> est en attente de validation : vous pouvez préparer votre catalogue, il sera
           visible du public dès la validation.
         </Alert>
       )}
-      <nav aria-label="Espace de l’entreprise" className="-mx-4 overflow-x-auto px-4">
+      <nav aria-label="Espace de l’entreprise" className="-mx-4 hidden overflow-x-auto px-4 sm:block">
         <ul className="flex gap-1 border-b border-slate-200">
           {items.map((item) => {
             const active = item.href === '/espace' ? pathname === '/espace' : pathname.startsWith(item.href);
@@ -68,6 +84,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         </ul>
       </nav>
       {children}
+      <MobileNav main={mainItems} more={moreItems} badges={counts} />
     </div>
   );
 }

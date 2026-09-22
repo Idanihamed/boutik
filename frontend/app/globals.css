@@ -3,5 +3,14 @@
 @tailwind utilities;
 
 body {
-  @apply bg-slate-50 text-slate-800 antialiased;
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+/* Titres : police d'affichage de Boutik (Bricolage Grotesque), plus affirmée que le texte courant. */
+@layer base {
+  h1,
+  h2 {
+    font-family: var(--font-display), system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
 }

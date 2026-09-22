@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { homeFor, useSession } from '../lib/session';
+import { Logo } from './Logo';
 import { NotificationBell } from './NotificationBell';
 import { Button } from './ui';
 
@@ -37,11 +38,9 @@ export function Header() {
   }
 
   return (
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
-        <Link href="/" className="text-xl font-bold text-brand-700">
-          Boutik
-        </Link>
+    <header className="border-b border-slate-200 bg-slate-50">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3.5">
+        <Logo />
         <nav className="flex items-center gap-2 text-sm">
           {loading ? null : user ? (
             <>
@@ -55,14 +54,14 @@ export function Header() {
             </>
           ) : (
             <>
-              <Link href="/connexion" className="rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">
+              <Link href="/connexion" className="whitespace-nowrap rounded-xl px-3 py-2 font-semibold text-slate-800 hover:bg-slate-100">
                 Se connecter
               </Link>
               <Link
                 href="/inscription"
-                className="rounded-lg bg-brand-600 px-3 py-2 font-medium text-white hover:bg-brand-700"
+                className="whitespace-nowrap rounded-xl bg-brand-600 px-4 py-2.5 font-semibold text-white hover:bg-brand-700"
               >
-                Créer mon entreprise
+                Créer ma boutique
               </Link>
             </>
           )}

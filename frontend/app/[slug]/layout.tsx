@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getStorefront } from '../../lib/server-api';
 import { StoreProvider } from '../../lib/store-context';
+import { CartBar } from '../../components/storefront/CartBar';
 import { StoreFooter } from '../../components/storefront/StoreFooter';
 import { StoreHeader } from '../../components/storefront/StoreHeader';
 
@@ -28,6 +29,8 @@ export default async function StorefrontLayout({ params, children }: Props) {
       <StoreHeader />
       {children}
       <StoreFooter store={store} />
+      <CartBar />
+      <div className="h-20" aria-hidden="true" />
     </StoreProvider>
   );
 }

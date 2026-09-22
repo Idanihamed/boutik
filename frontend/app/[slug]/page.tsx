@@ -31,7 +31,7 @@ export default async function StorefrontHome({ params }: { params: { slug: strin
   return (
     <div className="space-y-10">
       <section
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-700 to-brand-500 px-6 py-12 text-white sm:py-16"
+        className="relative overflow-hidden rounded-3xl bg-brand-700 px-6 py-12 text-white sm:py-16"
         style={hero ? { backgroundImage: `linear-gradient(rgba(15,118,110,.75), rgba(15,118,110,.75)), url(${hero})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
       >
         <h1 className="text-3xl font-bold sm:text-4xl">{store.name}</h1>
@@ -47,10 +47,11 @@ export default async function StorefrontHome({ params }: { params: { slug: strin
       {banner && (
         <Link
           href={`/${slug}/produits`}
-          className="block rounded-xl border border-red-200 bg-red-50 p-4 text-red-900 hover:bg-red-100"
+          className="block rounded-3xl bg-accent-50 p-5 text-slate-900 hover:bg-[#F9DEC9]"
         >
-          <p className="font-semibold">{banner.bannerTitle ?? banner.name}</p>
-          {banner.bannerSubtitle && <p className="text-sm">{banner.bannerSubtitle}</p>}
+          <p className="text-xs font-bold uppercase tracking-wider text-accent-700">Offre en cours</p>
+          <p className="mt-1 font-display text-2xl font-extrabold leading-tight">{banner.bannerTitle ?? banner.name}</p>
+          {banner.bannerSubtitle && <p className="mt-1 text-[15px] text-slate-500">{banner.bannerSubtitle}</p>}
         </Link>
       )}
 
@@ -64,7 +65,7 @@ export default async function StorefrontHome({ params }: { params: { slug: strin
               <li key={c.id}>
                 <Link
                   href={`/${slug}/produits?categorie=${encodeURIComponent(c.slug)}`}
-                  className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:border-brand-600 hover:text-brand-700"
+                  className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:border-brand-600 hover:text-brand-700"
                 >
                   {c.name}
                 </Link>
@@ -119,5 +120,5 @@ export default async function StorefrontHome({ params }: { params: { slug: strin
 }
 
 function ProductGrid({ children }: { children: React.ReactNode }) {
-  return <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{children}</ul>;
+  return <ul className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">{children}</ul>;
 }

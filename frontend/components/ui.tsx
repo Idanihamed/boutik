@@ -8,7 +8,7 @@ type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
   primary: 'bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-600/50',
-  secondary: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50',
+  secondary: 'border-[1.5px] border-slate-300 bg-white text-slate-900 hover:bg-slate-100 disabled:opacity-50',
   danger: 'bg-red-600 text-white hover:bg-red-700 disabled:bg-red-600/50',
   ghost: 'text-brand-700 hover:bg-brand-50 disabled:opacity-50',
 };
@@ -25,7 +25,7 @@ export function Button({
     <button
       {...props}
       disabled={disabled || loading}
-      className={`inline-flex min-h-[44px] items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed ${BUTTON_STYLES[variant]} ${className}`}
+      className={`inline-flex min-h-[48px] items-center justify-center rounded-xl px-5 py-2 text-[15px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed ${BUTTON_STYLES[variant]} ${className}`}
     >
       {loading ? 'Veuillez patienter…' : children}
     </button>
@@ -33,7 +33,7 @@ export function Button({
 }
 
 const CONTROL =
-  'w-full min-h-[44px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 placeholder:text-slate-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30';
+  'w-full min-h-[48px] rounded-xl border-[1.5px] border-slate-300 bg-white px-3.5 py-2 text-base text-slate-900 placeholder:text-slate-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30';
 
 export function Field({
   label,
@@ -48,7 +48,7 @@ export function Field({
 }) {
   return (
     <div className="space-y-1">
-      <label htmlFor={htmlFor} className="block text-sm font-medium text-slate-700">
+      <label htmlFor={htmlFor} className="block text-sm font-semibold text-slate-800">
         {label}
       </label>
       {children}
@@ -70,7 +70,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 }
 
 export function Card({ className = '', children }: { className?: string; children: React.ReactNode }) {
-  return <div className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 ${className}`}>{children}</div>;
 }
 
 export function Alert({ kind = 'error', children }: { kind?: 'error' | 'success' | 'info'; children: React.ReactNode }) {
