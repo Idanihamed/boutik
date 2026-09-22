@@ -124,13 +124,18 @@ export class PagesService {
     return page;
   }
 
-  /** Utilisé uniquement par le sitemap public (frontend/app/sitemap.ts) : la liste complète
-   * des pages publiées n'a jamais eu besoin d'être exposée publiquement avant (la route
-   * catch-all /[slug] ne connaît que le slug demandé), d'où l'absence de cette méthode jusqu'ici. */
+  /**
+   * Utilisée par le sitemap public (frontend/app/sitemap.ts) et par le pied de page de chaque
+   * vitrine (qui liste ses propres pages, ex. ses conditions de vente) : la liste complète des
+   * pages publiées n'avait jamais eu besoin d'être exposée publiquement avant (la route
+   * catch-all /[slug] ne connaît que le slug demandé), d'où l'absence de cette méthode jusqu'ici.
+   * `title` est inclus pour l'affichage du pied de page (le sitemap l'ignore simplement).
+   */
   findAllSlugsPublic() {
     return this.prisma.page.findMany({
       where: { status: 'PUBLISHED' },
-      select: { slug: true, updatedAt: true },
+      select: { slug: true, title: true, updatedAt: true },
+      orderBy: { title: 'asc' },
     });
   }
 }

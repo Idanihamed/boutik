@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getContentPageSlugs } from '../../lib/server-api';
 import type { Storefront } from '../../lib/types';
 
 type SocialKey = Exclude<keyof NonNullable<Storefront['settings']>, 'shippingFee' | 'freeShippingThreshold'>;
@@ -23,9 +24,12 @@ export function whatsappUrl(number: string | null | undefined, text?: string): s
   return `https://wa.me/${digits}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
 }
 
-export function StoreFooter({ store }: { store: Storefront }) {
+export async function StoreFooter({ store }: { store: Storefront }) {
   const whatsapp = whatsappUrl(store.settings?.whatsappNumber);
   const socials = SOCIALS.map((s) => ({ label: s.label, url: safeUrl(store.settings?.[s.key]) })).filter((s) => s.url);
+  // Ses propres pages (À propos, Livraison, ses conditions de vente…) : jamais bloquant, une
+  // erreur ou une entreprise sans page ne doit jamais empêcher le pied de page de s'afficher.
+  const pages = (await getContentPageSlugs(store.slug).catch(() => null)) ?? [];
 
   return (
     <footer className="mt-12 space-y-4 border-t border-slate-200 pt-6 text-sm text-slate-600">
@@ -41,6 +45,15 @@ export function StoreFooter({ store }: { store: Storefront }) {
           </a>
         ))}
       </div>
+      {pages.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {pages.map((p) => (
+            <Link key={p.slug} href={`/${store.slug}/${p.slug}`} className="hover:underline">
+              {p.title}
+            </Link>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
         <span>
           © {new Date().getFullYear()} {store.name} · Propulsé par <Link href="/" className="font-medium hover:underline">Boutik</Link>

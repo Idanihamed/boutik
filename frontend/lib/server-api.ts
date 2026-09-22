@@ -1,4 +1,4 @@
-import type { ActivePromotion, Boutique, DirectoryEntry, Paginated, Product, PublicCategory, Storefront } from './types';
+import type { ActivePromotion, Boutique, ContentPage, DirectoryEntry, Paginated, Product, PublicCategory, Storefront } from './types';
 
 // Appels faits CÔTÉ SERVEUR (rendu des pages publiques, pour le référencement et le partage) :
 // directs vers l'API, sans passer par le relais /api du navigateur.
@@ -41,6 +41,19 @@ export const getProduct = (slug: string, productSlug: string) =>
   storefrontGet<{ product: Product; similarProducts: Product[] }>(slug, `/products/${encodeURIComponent(productSlug)}`);
 
 export const getBoutiques = (slug: string) => storefrontGet<Boutique[]>(slug, '/boutiques');
+
+/**
+ * Page de contenu propre à l'entreprise (À propos, Livraison, ses propres conditions de
+ * vente…), affichée sur une adresse racine de sa vitrine (/<slug>/<pageSlug>) — voir
+ * PagesService.findOneBySlugPublic côté serveur pour la liste des segments réservés qu'une
+ * page ne peut jamais prendre comme adresse (/produits, /boutiques...).
+ */
+export const getContentPage = (slug: string, pageSlug: string) =>
+  storefrontGet<ContentPage>(slug, `/pages/${encodeURIComponent(pageSlug)}`);
+
+/** Slugs des pages publiées d'une entreprise (pour son pied de page et son plan du site). */
+export const getContentPageSlugs = (slug: string) =>
+  storefrontGet<{ slug: string; title: string; updatedAt: string }[]>(slug, '/pages');
 
 /** Annuaire des entreprises (public). Renvoie une liste vide si l'API ne répond pas : la page reste affichable. */
 export async function getDirectory(params: { search?: string; country?: string; page?: number; limit?: number }) {

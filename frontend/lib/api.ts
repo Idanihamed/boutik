@@ -10,6 +10,7 @@ import type {
   AdminMessageRow,
   AdminOrder,
   Category,
+  ContentPage,
   DashboardStats,
   FlaggedBusiness,
   MessageStatus,
@@ -221,6 +222,23 @@ export const adjustProductStock = (id: string, delta: number) =>
   request<Product>(`/admin/products/${id}/stock`, send('PATCH', { delta }));
 export const adjustVariantStock = (productId: string, variantId: string, delta: number) =>
   request<Product>(`/admin/products/${productId}/variants/${variantId}/stock`, send('PATCH', { delta }));
+
+export type PageInput = {
+  title: string;
+  content: string;
+  image?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  status?: ProductStatus;
+};
+export const listPages = () => request<ContentPage[]>('/admin/pages');
+export const getPage = (id: string) => request<ContentPage>(`/admin/pages/${id}`);
+export const createPage = (input: PageInput) => request<ContentPage>('/admin/pages', send('POST', input));
+export const updatePage = (id: string, input: Partial<PageInput>) =>
+  request<ContentPage>(`/admin/pages/${id}`, send('PATCH', input));
+export const deletePage = (id: string) => request(`/admin/pages/${id}`, send('DELETE'));
+export const setPagePublication = (id: string, action: 'publish' | 'unpublish') =>
+  request<ContentPage>(`/admin/pages/${id}/${action}`, send('PATCH'));
 
 // ---------- Espace du responsable : commandes, messages, paramètres ----------
 

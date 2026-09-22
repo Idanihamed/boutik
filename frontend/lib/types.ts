@@ -93,6 +93,19 @@ export interface Brand {
   isActive: boolean;
 }
 
+export interface ContentPage {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  image: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  status: ProductStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ProductImage {
   id?: string;
   url: string;

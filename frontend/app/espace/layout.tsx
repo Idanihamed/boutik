@@ -18,6 +18,7 @@ const NAV = [
   { href: '/espace/codes-promo', label: 'Codes promo', permission: 'promotions:read' },
   { href: '/espace/marques', label: 'Marques', permission: 'brands:read' },
   { href: '/espace/boutiques', label: 'Boutiques', permission: 'boutiques:read' },
+  { href: '/espace/pages', label: 'Pages', permission: 'pages:read' },
   { href: '/espace/equipe', label: 'Équipe', permission: 'users:read' },
   { href: '/espace/parametres', label: 'Paramètres', permission: 'settings:read' },
   { href: '/espace/entreprise', label: 'Mon entreprise', permission: 'business:read' },
