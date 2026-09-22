@@ -23,6 +23,7 @@ export default function CheckoutPage() {
   const [contact, setContact] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
   const [website, setWebsite] = useState(''); // piège à robots : reste vide pour un humain
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -141,6 +142,7 @@ export default function CheckoutPage() {
           promoCode: code ?? undefined,
           notes: notes.trim() || undefined,
           website: website || undefined,
+          paymentReference: paymentReference.trim() || undefined,
           items: items.map((i) => ({ productId: i.productId, variantId: i.variantId ?? undefined, quantity: i.quantity })),
         }),
       });
@@ -240,6 +242,27 @@ export default function CheckoutPage() {
           <Field label="Précisions (facultatif)" htmlFor="c-notes">
             <Textarea id="c-notes" rows={3} maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </Field>
+
+          {store.settings?.mobileMoneyNumber && (
+            <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+              <h2 className="font-semibold text-emerald-900">Paiement {store.settings.mobileMoneyProvider || 'Mobile Money'}</h2>
+              <p className="text-sm text-emerald-800">
+                Envoyez le montant de votre commande au <strong>{store.settings.mobileMoneyNumber}</strong>
+                {store.settings.mobileMoneyProvider ? ` (${store.settings.mobileMoneyProvider})` : ''}, puis indiquez ci-dessous la
+                référence reçue par SMS pour que {store.name} retrouve facilement votre paiement. {store.name} ne reçoit
+                aucune confirmation automatique : vérifiez avec eux avant d’envoyer si vous avez un doute.
+              </p>
+              <Field label="Référence de la transaction (facultatif)" htmlFor="c-payment-ref">
+                <Input
+                  id="c-payment-ref"
+                  maxLength={60}
+                  placeholder="Ex. MP240922.1234.A56789"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                />
+              </Field>
+            </div>
+          )}
 
           <div className="space-y-2">
             <label htmlFor="c-promo" className="block text-sm font-medium text-slate-700">

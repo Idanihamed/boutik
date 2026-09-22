@@ -86,6 +86,7 @@ enum NotificationType {
   OUT_OF_STOCK
   PROMOTION_EXPIRING
   NEW_ORDER
+  PAYMENT_INFO_CHANGED
 }
 
 // ---------- Entreprises (multi-tenant) ----------
@@ -668,16 +669,21 @@ model Order {
   boutiqueId String?
   boutique   Boutique? @relation(fields: [boutiqueId], references: [id], onDelete: SetNull)
 
-  notes          String?
-  status         OrderStatus @default(EN_ATTENTE)
+  notes            String?
+  // Référence de la transaction Mobile Money (facultative, saisie par le client) quand
+  // l'entreprise n'a qu'un numéro de réception direct (voir Setting.mobileMoneyNumber) et pas
+  // de prestataire branché : sert au commerçant à rapprocher le paiement reçu de la commande,
+  // le serveur ne pouvant pas vérifier lui-même un transfert Mobile Money.
+  paymentReference String?
+  status           OrderStatus @default(EN_ATTENTE)
   // Somme des sous-totaux de chaque ligne (voir OrderItem.subtotal), au moment de la commande —
   // ne recalcule jamais après coup même si les prix produits changent ensuite.
-  totalAmount    Int
+  totalAmount      Int
   // Détail du total : totalAmount = somme des lignes - discountAmount + shippingFee. Figés à la
   // commande (un changement de tarif ou de code promo ensuite ne modifie jamais une commande passée).
-  discountAmount Int         @default(0)
-  shippingFee    Int         @default(0)
-  promoCode      String?
+  discountAmount   Int         @default(0)
+  shippingFee      Int         @default(0)
+  promoCode        String?
 
   items OrderItem[]
 
@@ -783,6 +789,13 @@ model Setting {
   businessId            String   @unique @default("")
   business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   whatsappNumber        String?
+  // Paiement par transfert Mobile Money direct au commerçant (pas de prestataire branché pour
+  // l'instant, voir ADR) : le client transfère lui-même à ce numéro avant de valider sa
+  // commande. `mobileMoneyProvider` est un libellé libre (ex. "Orange Money", "Moov Money")
+  // plutôt qu'une énumération : la liste des opérateurs varie selon le pays de l'entreprise et
+  // n'a pas à être codée en dur ici (voir Business.country, déjà en texte libre pour la même raison).
+  mobileMoneyProvider   String?
+  mobileMoneyNumber     String?
   facebookUrl           String?
   instagramUrl          String?
   tiktokUrl             String?

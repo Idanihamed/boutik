@@ -149,6 +149,9 @@ export default function TrackingPage() {
               <dd>{formatPrice(order.totalAmount, store.currency)}</dd>
             </div>
           </dl>
+          {order.paymentReference && (
+            <p className="text-xs text-slate-500">Référence de paiement communiquée : {order.paymentReference}</p>
+          )}
         </Card>
       )}
 

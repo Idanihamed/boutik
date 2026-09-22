@@ -257,6 +257,7 @@ export class OrdersService {
           customerAddress: dto.customerAddress,
           boutiqueId: dto.boutiqueId,
           notes: dto.notes,
+          paymentReference: dto.paymentReference,
           totalAmount,
           discountAmount: discount,
           shippingFee,
@@ -340,6 +341,7 @@ export class OrdersService {
       shippingFee: order.shippingFee,
       promoCode: order.promoCode,
       customerAddress: order.customerAddress,
+      paymentReference: order.paymentReference,
       boutique: order.boutique ? { name: order.boutique.name, address: order.boutique.address } : null,
       createdAt: order.createdAt,
       items: order.items.map((item) => ({
@@ -396,6 +398,7 @@ export class OrdersService {
       shippingFee: order.shippingFee,
       promoCode: order.promoCode,
       customerAddress: order.customerAddress,
+      paymentReference: order.paymentReference,
       boutique: order.boutique ? { name: order.boutique.name, address: order.boutique.address } : null,
       business: order.business,
       createdAt: order.createdAt,

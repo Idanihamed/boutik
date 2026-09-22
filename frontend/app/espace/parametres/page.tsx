@@ -30,6 +30,8 @@ export default function SettingsPage() {
       .then((s) =>
         setValues({
           whatsappNumber: s.whatsappNumber ?? '',
+          mobileMoneyProvider: s.mobileMoneyProvider ?? '',
+          mobileMoneyNumber: s.mobileMoneyNumber ?? '',
           facebookUrl: s.facebookUrl ?? '',
           instagramUrl: s.instagramUrl ?? '',
           tiktokUrl: s.tiktokUrl ?? '',
@@ -83,6 +85,37 @@ export default function SettingsPage() {
           >
             <Input id="s-whatsapp" type="tel" disabled={!canEdit} value={values.whatsappNumber} onChange={(e) => set('whatsappNumber', e.target.value)} />
           </Field>
+        </Card>
+
+        <Card className="space-y-4">
+          <h2 className="font-semibold text-slate-900">Paiement Mobile Money</h2>
+          <p className="text-sm text-slate-600">
+            Boutik ne gère pas encore le paiement en ligne automatique. Le numéro renseigné ici s’affiche au client à
+            l’étape de commande : il vous transfère l’argent lui-même avant validation, à vous de vérifier la réception
+            dans votre application Mobile Money.
+          </p>
+          <Field label="Opérateur" htmlFor="s-mm-provider" hint="Par exemple « Orange Money » ou « Moov Money ».">
+            <Input
+              id="s-mm-provider"
+              disabled={!canEdit}
+              placeholder="Orange Money"
+              value={values.mobileMoneyProvider}
+              onChange={(e) => set('mobileMoneyProvider', e.target.value)}
+            />
+          </Field>
+          <Field label="Numéro de réception" htmlFor="s-mm-number" hint="Laissez vide pour ne pas proposer ce mode de paiement.">
+            <Input
+              id="s-mm-number"
+              type="tel"
+              disabled={!canEdit}
+              value={values.mobileMoneyNumber}
+              onChange={(e) => set('mobileMoneyNumber', e.target.value)}
+            />
+          </Field>
+          <p className="text-xs text-amber-700">
+            ⚠️ Ce numéro reçoit directement l’argent de vos clients. Si vous le changez sans que ce soit vous à
+            l’origine (compte piraté), vous recevrez une alerte — changez alors votre mot de passe immédiatement.
+          </p>
         </Card>
 
         <Card className="space-y-4">

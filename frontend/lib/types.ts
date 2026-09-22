@@ -212,6 +212,8 @@ export interface Storefront {
   currency: string;
   settings: {
     whatsappNumber: string | null;
+    mobileMoneyProvider: string | null;
+    mobileMoneyNumber: string | null;
     facebookUrl: string | null;
     instagramUrl: string | null;
     tiktokUrl: string | null;
@@ -252,6 +254,7 @@ export interface OrderTracking {
   shippingFee: number;
   promoCode: string | null;
   customerAddress: string | null;
+  paymentReference: string | null;
   createdAt: string;
   items: { productName: string; unitPrice: number; quantity: number; subtotal: number }[];
 }
@@ -277,6 +280,7 @@ export interface AdminOrder {
   customerContact: string;
   customerAddress: string | null;
   notes: string | null;
+  paymentReference: string | null;
   status: OrderStatus;
   totalAmount: number;
   discountAmount: number;
@@ -310,6 +314,8 @@ export interface AdminMessage extends AdminMessageRow {
 
 export interface Settings {
   whatsappNumber: string | null;
+  mobileMoneyProvider: string | null;
+  mobileMoneyNumber: string | null;
   facebookUrl: string | null;
   instagramUrl: string | null;
   tiktokUrl: string | null;
@@ -418,7 +424,7 @@ export interface BoutiqueInput {
 
 export interface AppNotification {
   id: string;
-  type: 'CONTACT_MESSAGE' | 'LOW_STOCK' | 'OUT_OF_STOCK' | 'PROMOTION_EXPIRING' | 'NEW_ORDER';
+  type: 'CONTACT_MESSAGE' | 'LOW_STOCK' | 'OUT_OF_STOCK' | 'PROMOTION_EXPIRING' | 'NEW_ORDER' | 'PAYMENT_INFO_CHANGED';
   message: string;
   link: string | null;
   isRead: boolean;

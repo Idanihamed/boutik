@@ -15,6 +15,19 @@ export class UpdateSettingsDto {
   @Matches(/^[+()\d\s.-]*$/, { message: 'Numéro WhatsApp invalide.' })
   whatsappNumber?: string;
 
+  // Paiement par transfert Mobile Money direct (pas de prestataire branché) : le client
+  // transfère lui-même à ce numéro avant de valider sa commande (voir CreateOrderDto.paymentReference).
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  mobileMoneyProvider?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  @Matches(/^[+()\d\s.-]*$/, { message: 'Numéro Mobile Money invalide.' })
+  mobileMoneyNumber?: string;
+
   @IsOptional()
   @ValidateIf(notEmpty)
   @IsUrl(LINK, { message: 'Lien invalide (doit commencer par http:// ou https://).' })

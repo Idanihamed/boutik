@@ -26,6 +26,7 @@ const PUSH_TITLE_BY_TYPE: Record<NotificationType, string> = {
   OUT_OF_STOCK: 'Alerte de stock',
   PROMOTION_EXPIRING: 'Promotion bientôt terminée',
   NEW_ORDER: 'Nouvelle commande',
+  PAYMENT_INFO_CHANGED: 'Coordonnées de paiement modifiées',
 };
 
 const PERMISSION_BY_TYPE: Record<NotificationType, string> = {
@@ -34,6 +35,7 @@ const PERMISSION_BY_TYPE: Record<NotificationType, string> = {
   OUT_OF_STOCK: 'products:read',
   PROMOTION_EXPIRING: 'promotions:read',
   NEW_ORDER: 'orders:read',
+  PAYMENT_INFO_CHANGED: 'settings:read',
 };
 
 @Injectable()

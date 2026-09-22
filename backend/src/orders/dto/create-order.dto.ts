@@ -34,6 +34,18 @@ export class CreateOrderDto {
   @MaxLength(1000)
   notes?: string;
 
+  /**
+   * Référence de transaction Mobile Money (facultative) — saisie par le client quand
+   * l'entreprise n'a qu'un numéro de réception direct (Setting.mobileMoneyNumber), pour que le
+   * commerçant puisse rapprocher le paiement reçu de cette commande. Jamais utilisée pour
+   * valider automatiquement un paiement : le serveur ne peut pas vérifier un transfert Mobile
+   * Money, seul le commerçant le peut depuis sa propre application.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  paymentReference?: string;
+
   // Plafonné à 50 lignes : une commande "normale" en compte quelques-unes, une valeur plus
   // haute n'a aucune raison légitime et alourdirait inutilement le calcul de prix/stock.
   @ArrayMinSize(1, { message: 'La commande doit contenir au moins un article.' })

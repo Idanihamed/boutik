@@ -151,6 +151,8 @@ export class BusinessesService {
       where: { businessId },
       select: {
         whatsappNumber: true,
+        mobileMoneyProvider: true,
+        mobileMoneyNumber: true,
         facebookUrl: true,
         instagramUrl: true,
         tiktokUrl: true,

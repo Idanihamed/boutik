@@ -151,6 +151,12 @@ export default function OrderDetailPage() {
             <strong>Précisions :</strong> {order.notes}
           </p>
         )}
+        {order.paymentReference && (
+          <p className="text-sm text-slate-700">
+            <strong>Référence de paiement :</strong> {order.paymentReference}{' '}
+            <span className="text-slate-500">(à vérifier vous-même dans votre application Mobile Money)</span>
+          </p>
+        )}
       </Card>
 
       <Card className="space-y-3">
