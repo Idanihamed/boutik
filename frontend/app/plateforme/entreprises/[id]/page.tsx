@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, getPlatformBusiness, setReportStatus } from '../../../../lib/api';
+import { ApiError, getPlatformBusiness, markBusinessPaid, setReportStatus } from '../../../../lib/api';
 import {
   ACTION_LABELS,
   ALLOWED_ACTIONS,
@@ -13,6 +13,7 @@ import {
   REPORT_REASON_LABELS,
   REPORT_STATUS_LABELS,
   ROLE_LABELS,
+  subscriptionInfo,
 } from '../../../../lib/labels';
 import type { BusinessDetail, ModerationAction } from '../../../../lib/types';
 import { ModerationDialog } from '../../../../components/ModerationDialog';
@@ -24,6 +25,7 @@ export default function BusinessDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [action, setAction] = useState<ModerationAction | null>(null);
   const [busyReport, setBusyReport] = useState<string | null>(null);
+  const [busyPayment, setBusyPayment] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -37,6 +39,20 @@ export default function BusinessDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function confirmPayment() {
+    if (!confirm(`Confirmer la réception du paiement Mobile Money de « ${business?.name} » et étendre l'abonnement de 30 jours ?`)) return;
+    setBusyPayment(true);
+    try {
+      await markBusinessPaid(id);
+      await load();
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Impossible d’enregistrer ce paiement.');
+    } finally {
+      setBusyPayment(false);
+    }
+  }
 
   async function closeReport(reportId: string, status: 'DISMISSED' | 'ACTIONED') {
     setBusyReport(reportId);
@@ -54,6 +70,7 @@ export default function BusinessDetailPage() {
   if (!business) return <Spinner />;
 
   const openReports = business.reports.filter((r) => r.status === 'OPEN').length;
+  const sub = subscriptionInfo(business);
 
   return (
     <div className="space-y-5">
@@ -92,6 +109,23 @@ export default function BusinessDetailPage() {
           ))}
         </div>
       </Card>
+
+      {sub && (
+        <Card className="space-y-2">
+          <h3 className="font-semibold text-slate-900">Abonnement</h3>
+          <p className="text-sm">
+            <span className={`font-medium ${sub.color}`}>{sub.label}</span> · échéance le {sub.due}
+          </p>
+          <p className="text-xs text-slate-500">
+            Paiement constaté manuellement (transfert Mobile Money reçu par la plateforme) — aucun prélèvement automatique.
+          </p>
+          <div>
+            <Button loading={busyPayment} onClick={confirmPayment}>
+              Marquer payé (+30 jours)
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <Card className="space-y-3">
         <h3 className="font-semibold text-slate-900">Équipe ({business.users.length})</h3>

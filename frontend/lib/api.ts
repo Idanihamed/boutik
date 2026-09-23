@@ -161,6 +161,13 @@ export function moderateBusiness(id: string, action: ModerationAction, reason?: 
   return request<{ id: string; status: BusinessStatus }>(`/platform/businesses/${id}/${action}`, json({ reason }));
 }
 
+export function markBusinessPaid(id: string) {
+  return request<{ id: string; name: string; trialEndsAt: string | null; subscriptionPaidUntil: string | null }>(
+    `/platform/businesses/${id}/mark-paid`,
+    json({}),
+  );
+}
+
 export function listFlaggedBusinesses() {
   return request<FlaggedBusiness[]>('/platform/reports/flagged');
 }

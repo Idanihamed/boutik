@@ -67,6 +67,14 @@ export class PlatformController {
     return this.moderate(id, 'reactivate', dto, user);
   }
 
+  // Paiement d'abonnement constaté manuellement (Mobile Money, voir platform-businesses.service.ts) :
+  // même permission que les autres décisions de modération, pas de nouveau rôle à créer pour ça.
+  @RequirePermissions('businesses:moderate')
+  @Post('businesses/:id/mark-paid')
+  markPaid(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.businessesService.markPaid(id, user);
+  }
+
   @RequirePermissions('reports:read')
   @Get('reports')
   listReports(@Query() query: QueryPlatformReportsDto) {

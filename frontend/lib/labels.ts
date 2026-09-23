@@ -45,6 +45,7 @@ export const EVENT_LABELS: Record<string, string> = {
   SUSPENDED: 'Suspendue',
   BANNED: 'Bannie',
   REACTIVATED: 'Réactivée',
+  SUBSCRIPTION_PAID: 'Abonnement payé',
 };
 
 /** Décisions possibles selon le statut actuel (miroir de la machine à états de l'API). */
@@ -102,6 +103,34 @@ export function countryName(code: string): string {
 
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+export function formatDateOnly(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { dateStyle: 'medium' });
+}
+
+/**
+ * Résumé lisible de l'état d'abonnement d'une entreprise (essai ou dernière période payée — voir
+ * platform-businesses.service.ts, dueDate). `null` si l'entreprise n'a pas encore été validée
+ * une première fois (pas d'échéance avant ça).
+ */
+export function subscriptionInfo(business: { trialEndsAt: string | null; subscriptionPaidUntil: string | null }): {
+  label: string;
+  due: string;
+  overdue: boolean;
+  color: string;
+} | null {
+  const dueIso = business.subscriptionPaidUntil ?? business.trialEndsAt;
+  if (!dueIso) return null;
+  const due = new Date(dueIso);
+  const overdue = due.getTime() < Date.now();
+  const onTrial = !business.subscriptionPaidUntil;
+  return {
+    due: formatDateOnly(dueIso),
+    overdue,
+    label: overdue ? "Échéance dépassée" : onTrial ? "Essai en cours" : 'Abonnement actif',
+    color: overdue ? 'text-red-700' : onTrial ? 'text-amber-700' : 'text-emerald-700',
+  };
 }
 
 /** Devise par défaut selon le pays (miroir de l'API, voir backend/src/common/countries.ts). */

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, listFlaggedBusinesses, listPlatformBusinesses } from '../../lib/api';
-import { countryName, formatDate, STATUS_LABELS } from '../../lib/labels';
+import { countryName, formatDate, STATUS_LABELS, subscriptionInfo } from '../../lib/labels';
 import type { BusinessStatus, FlaggedBusiness, ModerationAction, Paginated, PlatformBusinessRow } from '../../lib/types';
 import { ModerationDialog } from '../../components/ModerationDialog';
 import { Pagination } from '../../components/Pagination';
@@ -173,6 +173,7 @@ function BusinessCard({
   quickActions: boolean;
   onAction: (action: ModerationAction) => void;
 }) {
+  const sub = business.status === 'ACTIVE' ? subscriptionInfo(business) : null;
   return (
     <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 space-y-1">
@@ -186,6 +187,7 @@ function BusinessCard({
               {business.openReports} signalement{business.openReports > 1 ? 's' : ''}
             </span>
           )}
+          {sub && <span className={`text-xs font-medium ${sub.color}`}>{sub.label} · échéance {sub.due}</span>}
         </div>
         <p className="text-sm text-slate-500">
           /{business.slug} · {countryName(business.country)} ({business.currency}) · inscrite le {formatDate(business.createdAt)}

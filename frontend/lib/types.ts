@@ -28,6 +28,8 @@ export interface PlatformBusinessRow {
   statusReason: string | null;
   createdAt: string;
   openReports: number;
+  trialEndsAt: string | null;
+  subscriptionPaidUntil: string | null;
 }
 
 export interface FlaggedBusiness {
@@ -67,6 +69,8 @@ export interface BusinessDetail {
   statusReason: string | null;
   statusChangedAt: string | null;
   createdAt: string;
+  trialEndsAt: string | null;
+  subscriptionPaidUntil: string | null;
   users: { id: string; name: string; email: string; isActive: boolean; role: { name: string } }[];
   moderationLog: ModerationEvent[];
   reports: BusinessReportItem[];

@@ -117,6 +117,19 @@ model Business {
   statusReason    String?
   statusChangedAt DateTime?
 
+  // ---------- Abonnement (facturation manuelle, voir platform-businesses.service.ts) ----------
+  // Fixée une seule fois, à la première validation (approve) : 30 jours à partir de là, jamais
+  // recalculée ensuite (le renouvellement passe par subscriptionPaidUntil).
+  trialEndsAt DateTime?
+  // Date jusqu'à laquelle l'entreprise a payé (null tant qu'aucun paiement n'a été enregistré :
+  // l'échéance est alors trialEndsAt). Étendue de 30 jours à chaque paiement marqué par la
+  // plateforme (voir markPaid) — depuis l'échéance actuelle si elle n'est pas encore dépassée,
+  // sinon depuis aujourd'hui.
+  subscriptionPaidUntil DateTime?
+  // Empêche de renvoyer le rappel "abonnement bientôt expiré" chaque jour tant que l'échéance
+  // n'a pas changé (paiement ou nouvelle période) — voir SubscriptionBillingService.
+  renewalReminderSentAt DateTime?
+
   users         User[]
   reports       BusinessReport[]
   moderationLog BusinessModerationEvent[]

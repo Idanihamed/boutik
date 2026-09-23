@@ -2,10 +2,15 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { BusinessStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
-import { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { OWNER_ROLE } from '../common/roles';
 import { escapeHtml } from '../common/utils/escape-html.util';
 import { QueryPlatformBusinessesDto } from './dto/platform.dto';
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
 
 export type ModerationAction = 'approve' | 'reject' | 'suspend' | 'ban' | 'reactivate';
 
@@ -66,6 +71,16 @@ const TRANSITIONS: Record<ModerationAction, Transition> = {
 // Statuts qui coupent l'accès au back-office : les sessions ouvertes sont révoquées tout de suite.
 const SESSION_REVOKING_STATUSES = new Set<BusinessStatus>(['REJECTED', 'SUSPENDED', 'BANNED']);
 
+// Durée de l'essai gratuit et de chaque période payée : 30 jours (voir §modèle économique du
+// projet). Un seul palier pour l'instant, pas de grille tarifaire — voir SUBSCRIPTION_PRICE.
+const SUBSCRIPTION_PERIOD_DAYS = 30;
+
+/** Acteur d'une décision de modération : un administrateur réel, ou le système (voir SubscriptionBillingService). */
+export interface ModerationActor {
+  id: string | null;
+  name: string;
+}
+
 /** Espace de modération réservé à l'administrateur de la plateforme. */
 @Injectable()
 export class PlatformBusinessesService {
@@ -73,6 +88,11 @@ export class PlatformBusinessesService {
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
   ) {}
+
+  /** Échéance actuelle de l'abonnement : la dernière période payée, sinon la fin de l'essai. */
+  static dueDate(business: { trialEndsAt: Date | null; subscriptionPaidUntil: Date | null }): Date | null {
+    return business.subscriptionPaidUntil ?? business.trialEndsAt;
+  }
 
   async list(query: QueryPlatformBusinessesDto) {
     const page = query.page ?? 1;
@@ -105,6 +125,8 @@ export class PlatformBusinessesService {
           status: true,
           statusReason: true,
           createdAt: true,
+          trialEndsAt: true,
+          subscriptionPaidUntil: true,
           _count: { select: { reports: { where: { status: 'OPEN' } } } },
         },
       }),
@@ -134,7 +156,7 @@ export class PlatformBusinessesService {
     return business;
   }
 
-  async moderate(id: string, action: ModerationAction, reason: string | undefined, actor: AuthenticatedUser) {
+  async moderate(id: string, action: ModerationAction, reason: string | undefined, actor: ModerationActor) {
     const transition = TRANSITIONS[action];
     const cleanReason = reason?.trim() || undefined;
 
@@ -151,7 +173,15 @@ export class PlatformBusinessesService {
     const updated = await this.prisma.$transaction(async (tx) => {
       const result = await tx.business.update({
         where: { id },
-        data: { status: transition.to, statusReason: cleanReason ?? null, statusChangedAt: new Date() },
+        data: {
+          status: transition.to,
+          statusReason: cleanReason ?? null,
+          statusChangedAt: new Date(),
+          // Première validation : point de départ de l'essai gratuit de 30 jours.
+          ...(action === 'approve' && !business.trialEndsAt
+            ? { trialEndsAt: addDays(new Date(), SUBSCRIPTION_PERIOD_DAYS) }
+            : {}),
+        },
       });
       await tx.businessModerationEvent.create({
         data: { businessId: id, actorId: actor.id, actorName: actor.name, action: transition.event, reason: cleanReason ?? null },
@@ -168,6 +198,62 @@ export class PlatformBusinessesService {
 
     await this.notifyOwners(id, updated.name, transition, cleanReason);
     return { id: updated.id, name: updated.name, slug: updated.slug, status: updated.status, statusReason: updated.statusReason };
+  }
+
+  /**
+   * Enregistre un paiement d'abonnement (transfert Mobile Money reçu et vérifié manuellement par
+   * la plateforme — voir §modèle économique du projet, pas de prestataire de paiement intégré).
+   * Étend l'échéance de 30 jours à partir de l'échéance actuelle si elle n'est pas encore
+   * dépassée (renouvellement en avance, rien n'est perdu), sinon à partir d'aujourd'hui
+   * (renouvellement en retard, on ne fait pas payer le retard). N'agit jamais sur `status` : si
+   * l'entreprise avait été suspendue (faute de paiement ou pour une autre raison), l'administrateur
+   * doit encore la réactiver explicitement (action séparée) — un paiement ne doit pas lever
+   * silencieusement une suspension décidée pour un motif de modération.
+   */
+  async markPaid(id: string, actor: ModerationActor) {
+    const business = await this.prisma.business.findUnique({ where: { id } });
+    if (!business) throw new NotFoundException('Entreprise introuvable.');
+
+    const now = new Date();
+    const currentDue = PlatformBusinessesService.dueDate(business);
+    const base = currentDue && currentDue > now ? currentDue : now;
+    const newDue = addDays(base, SUBSCRIPTION_PERIOD_DAYS);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.business.update({
+        where: { id },
+        data: { subscriptionPaidUntil: newDue, renewalReminderSentAt: null },
+      });
+      await tx.businessModerationEvent.create({
+        data: {
+          businessId: id,
+          actorId: actor.id,
+          actorName: actor.name,
+          action: 'SUBSCRIPTION_PAID',
+          reason: `Abonnement payé jusqu'au ${newDue.toLocaleDateString('fr-FR')}.`,
+        },
+      });
+      return result;
+    });
+
+    const owners = await this.prisma.user.findMany({
+      where: { businessId: id, role: { name: OWNER_ROLE } },
+      select: { email: true },
+    });
+    for (const owner of owners) {
+      await this.mailService.send({
+        to: owner.email,
+        subject: `Paiement enregistré pour « ${business.name} »`,
+        html: `<p>Votre paiement a bien été enregistré. Votre abonnement est valable jusqu'au <strong>${newDue.toLocaleDateString('fr-FR')}</strong>.</p>`,
+      });
+    }
+
+    return {
+      id: updated.id,
+      name: updated.name,
+      trialEndsAt: updated.trialEndsAt,
+      subscriptionPaidUntil: updated.subscriptionPaidUntil,
+    };
   }
 
   /** Informe les Responsables de la décision (no-op tant que l'envoi d'email n'est pas configuré). */
