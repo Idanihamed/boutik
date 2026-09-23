@@ -8,6 +8,7 @@ export function screenFor(link: string | null | undefined): Href | null {
   if (!link) return null;
   if (link === '/espace/commandes') return '/(tabs)/commandes';
   if (link === '/espace/messages') return '/(tabs)/messages';
+  if (link === '/espace/promotions') return '/promotions';
   const product = /^\/espace\/produits\/([\w-]+)$/.exec(link);
   if (product) return `/produit/${product[1]}`;
   return null;

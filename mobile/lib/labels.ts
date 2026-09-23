@@ -1,4 +1,4 @@
-import type { MessageStatus, OrderStatus, StockStatus } from './types';
+import type { MessageStatus, OrderStatus, PromotionDisplayStatus, PromotionType, StockStatus } from './types';
 
 // Identité Boutik : vert et crème, alignée sur le site (frontend/tailwind.config.ts).
 export const COLORS = {
@@ -86,6 +86,35 @@ export function contactLinks(contact: string): { url: string; label: string }[] 
   }
   return links;
 }
+
+export const PROMOTION_STATUS_LABELS: Record<PromotionDisplayStatus, string> = {
+  DRAFT: 'Brouillon',
+  SCHEDULED: 'Programmée',
+  ACTIVE: 'En cours',
+  EXPIRED: 'Terminée',
+  DISABLED: 'Désactivée',
+};
+
+export const PROMOTION_STATUS_COLORS: Record<PromotionDisplayStatus, { bg: string; fg: string }> = {
+  DRAFT: { bg: '#e2e8f0', fg: '#334155' },
+  SCHEDULED: { bg: '#e0f2fe', fg: '#075985' },
+  ACTIVE: { bg: '#d1fae5', fg: '#065f46' },
+  EXPIRED: { bg: '#e2e8f0', fg: '#5A625D' },
+  DISABLED: { bg: '#fef3c7', fg: '#92400e' },
+};
+
+/** Résumé lisible de la réduction, ex. « -20 % » ou « -500 FCFA ». */
+export function describePromotionValue(type: PromotionType, value: number, currency: string): string {
+  if (type === 'PERCENTAGE') return `-${value} %`;
+  if (type === 'FIXED_AMOUNT') return `-${formatPrice(value, currency)}`;
+  return `Prix : ${formatPrice(value, currency)}`;
+}
+
+export const ROLE_LABELS: Record<string, string> = {
+  OWNER: 'Responsable',
+  GESTIONNAIRE: 'Gestionnaire',
+  EDITEUR: 'Éditeur',
+};
 
 export const STOCK_LABELS: Record<StockStatus, string> = {
   DISPONIBLE: 'En stock',

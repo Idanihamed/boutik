@@ -34,6 +34,8 @@ export default function RootLayout() {
         <Stack.Screen name="commande/[id]" options={{ title: 'Commande' }} />
         <Stack.Screen name="message/[id]" options={{ title: 'Message' }} />
         <Stack.Screen name="produit/[id]" options={{ title: 'Produit' }} />
+        <Stack.Screen name="promotions" options={{ title: 'Promotions' }} />
+        <Stack.Screen name="equipe" options={{ title: 'Équipe' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       </Stack>
     </SessionProvider>

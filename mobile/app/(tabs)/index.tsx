@@ -1,6 +1,6 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button, Card, ErrorBox, Loader } from '../../components/ui';
 import { ApiError, getDashboardStats } from '../../lib/api';
 import { COLORS } from '../../lib/labels';
@@ -23,8 +23,17 @@ function Stat({ value, label, alert = false }: { value: number; label: string; a
   );
 }
 
+function QuickLink({ label, glyph, onPress }: { label: string; glyph: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.quickLink, pressed && { opacity: 0.7 }]}>
+      <Text style={{ fontSize: 22 }}>{glyph}</Text>
+      <Text style={styles.quickLinkLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export default function HomeScreen() {
-  const { user, logout } = useSession();
+  const { user, logout, can } = useSession();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,6 +87,13 @@ export default function HomeScreen() {
         </View>
       )}
 
+      {(can('promotions:read') || can('users:read')) && (
+        <View style={styles.quickLinks}>
+          {can('promotions:read') && <QuickLink label="Promotions" glyph="🏷️" onPress={() => router.push('/promotions')} />}
+          {can('users:read') && <QuickLink label="Équipe" glyph="👥" onPress={() => router.push('/equipe')} />}
+        </View>
+      )}
+
       <Text style={styles.muted}>Tirez vers le bas pour actualiser.</Text>
       <Button label="Se déconnecter" variant="secondary" onPress={logout} />
     </ScrollView>
@@ -92,4 +108,16 @@ const styles = StyleSheet.create({
   stat: { flexBasis: '47%', flexGrow: 1 },
   statValue: { fontSize: 32, fontWeight: '800', color: COLORS.text },
   statLabel: { color: COLORS.muted, fontSize: 14, marginTop: 2 },
+  quickLinks: { flexDirection: 'row', gap: 12 },
+  quickLink: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
+  },
+  quickLinkLabel: { fontSize: 14, fontWeight: '600', color: COLORS.text },
 });

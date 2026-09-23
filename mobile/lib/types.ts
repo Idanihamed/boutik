@@ -5,6 +5,9 @@ export type OrderStatus = 'EN_ATTENTE' | 'CONFIRMEE' | 'EN_PREPARATION' | 'EXPED
 export type StockStatus = 'DISPONIBLE' | 'STOCK_FAIBLE' | 'RUPTURE';
 export type ProductStatus = 'DRAFT' | 'PUBLISHED';
 export type MessageStatus = 'NOUVEAU' | 'LU' | 'TRAITE';
+export type PromotionType = 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FIXED_PRICE';
+export type PromotionAdminStatus = 'DRAFT' | 'ACTIVE' | 'DISABLED';
+export type PromotionDisplayStatus = 'DRAFT' | 'SCHEDULED' | 'ACTIVE' | 'EXPIRED' | 'DISABLED';
 
 export interface AuthUser {
   id: string;
@@ -66,6 +69,24 @@ export interface AdminMessage extends AdminMessageRow {
   repliedAt: string | null;
 }
 
+export interface ProductVariant {
+  id: string;
+  label: string;
+  option1Value: string | null;
+  option2Value: string | null;
+  sku: string | null;
+  price: number;
+  promoPrice: number | null;
+  priceOverride: number | null;
+  promoPriceOverride: number | null;
+  effectivePrice: number;
+  onSale: boolean;
+  stock: number;
+  stockStatus: StockStatus;
+  image: string | null;
+  isActive: boolean;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -80,6 +101,33 @@ export interface Product {
   status: ProductStatus;
   category: { id: string; name: string } | null;
   images: { url: string; alt: string | null; isMain: boolean }[];
+  hasVariants: boolean;
+  variantOption1Name: string | null;
+  variantOption2Name: string | null;
+  variants: ProductVariant[];
+}
+
+export interface Promotion {
+  id: string;
+  name: string;
+  description: string | null;
+  type: PromotionType;
+  value: number;
+  startsAt: string;
+  endsAt: string;
+  adminStatus: PromotionAdminStatus;
+  displayStatus: PromotionDisplayStatus;
+  products: { id: string; name: string }[];
+  categories: { id: string; name: string }[];
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
 }
 
 export interface AppNotification {

@@ -5,6 +5,7 @@ import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, T
 import { Button, Card, ErrorBox, Loader, Pill } from '../../components/ui';
 import {
   adjustProductStock,
+  adjustVariantStock,
   ApiError,
   getProduct,
   imageUrl,
@@ -15,7 +16,69 @@ import {
 } from '../../lib/api';
 import { COLORS, currencyLabel, formatPrice, STOCK_COLORS, STOCK_LABELS } from '../../lib/labels';
 import { useSession } from '../../lib/session';
-import type { Product } from '../../lib/types';
+import type { Product, ProductVariant } from '../../lib/types';
+
+/** Une variante à la fois : stock + son propre delta de quantité (ajout/retrait). */
+function VariantRow({
+  variant,
+  currency,
+  canUpdate,
+  busy,
+  onAdjust,
+}: {
+  variant: ProductVariant;
+  currency: string;
+  canUpdate: boolean;
+  busy: boolean;
+  onAdjust: (delta: number) => Promise<void>;
+}) {
+  const [delta, setDelta] = useState('1');
+  const [pending, setPending] = useState<1 | -1 | null>(null);
+
+  async function run(sign: 1 | -1) {
+    const amount = toInt(delta);
+    if (amount < 1) return;
+    if (sign === -1 && amount > variant.stock) return;
+    setPending(sign);
+    await onAdjust(sign * amount);
+    setPending(null);
+  }
+
+  return (
+    <Card style={{ gap: 8 }}>
+      <View style={styles.rowButtons}>
+        <Text style={styles.label}>
+          {variant.label || '(sans libellé)'}
+          {!variant.isActive && <Text style={styles.muted}>  · désactivée</Text>}
+        </Text>
+        <Pill label={STOCK_LABELS[variant.stockStatus]} {...STOCK_COLORS[variant.stockStatus]} />
+      </View>
+      <View style={styles.rowButtons}>
+        <Text style={styles.stock}>{variant.stock}</Text>
+        <Text style={styles.muted}>{formatPrice(variant.effectivePrice, currency)}</Text>
+      </View>
+      {canUpdate && (
+        <>
+          <TextInput
+            style={styles.input}
+            value={delta}
+            onChangeText={setDelta}
+            keyboardType="number-pad"
+            accessibilityLabel={`Quantité à ajouter ou retirer pour ${variant.label}`}
+          />
+          <View style={styles.rowButtons}>
+            <View style={{ flex: 1 }}>
+              <Button label="Retirer" variant="secondary" onPress={() => run(-1)} loading={pending === -1} disabled={busy} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button label="Ajouter" onPress={() => run(1)} loading={pending === 1} disabled={busy} />
+            </View>
+          </View>
+        </>
+      )}
+    </Card>
+  );
+}
 
 const toInt = (value: string) => Math.max(0, Math.trunc(Number(value.replace(/\s/g, '')) || 0));
 
@@ -157,35 +220,60 @@ export default function ProductDetailScreen() {
           </View>
         )}
 
-        <Card style={{ gap: 10 }}>
-          <Text style={styles.section}>Stock</Text>
-          <View style={styles.rowButtons}>
-            <Text style={styles.stock}>{product.stock}</Text>
-            <Pill label={STOCK_LABELS[product.stockStatus]} {...STOCK_COLORS[product.stockStatus]} />
-          </View>
-          {canUpdate && (
-            <>
-              <TextInput
-                style={styles.input}
-                value={delta}
-                onChangeText={setDelta}
-                keyboardType="number-pad"
-                accessibilityLabel="Quantité à ajouter ou retirer"
+        {product.hasVariants ? (
+          <View style={{ gap: 10 }}>
+            <View style={styles.rowButtons}>
+              <Text style={styles.section}>Stock total : {product.stock}</Text>
+              <Pill label={STOCK_LABELS[product.stockStatus]} {...STOCK_COLORS[product.stockStatus]} />
+            </View>
+            {product.variants.map((variant) => (
+              <VariantRow
+                key={variant.id}
+                variant={variant}
+                currency={currency}
+                canUpdate={canUpdate}
+                busy={busy !== null}
+                onAdjust={(delta) => run('stock', delta > 0 ? 'Stock augmenté.' : 'Stock diminué.', () => adjustVariantStock(product.id, variant.id, delta))}
               />
-              <View style={styles.rowButtons}>
-                <View style={{ flex: 1 }}>
-                  <Button label="Retirer" variant="secondary" onPress={() => changeStock(-1)} loading={busy === 'stock'} disabled={busy !== null} />
+            ))}
+          </View>
+        ) : (
+          <Card style={{ gap: 10 }}>
+            <Text style={styles.section}>Stock</Text>
+            <View style={styles.rowButtons}>
+              <Text style={styles.stock}>{product.stock}</Text>
+              <Pill label={STOCK_LABELS[product.stockStatus]} {...STOCK_COLORS[product.stockStatus]} />
+            </View>
+            {canUpdate && (
+              <>
+                <TextInput
+                  style={styles.input}
+                  value={delta}
+                  onChangeText={setDelta}
+                  keyboardType="number-pad"
+                  accessibilityLabel="Quantité à ajouter ou retirer"
+                />
+                <View style={styles.rowButtons}>
+                  <View style={{ flex: 1 }}>
+                    <Button label="Retirer" variant="secondary" onPress={() => changeStock(-1)} loading={busy === 'stock'} disabled={busy !== null} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Button label="Ajouter" onPress={() => changeStock(1)} loading={busy === 'stock'} disabled={busy !== null} />
+                  </View>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Button label="Ajouter" onPress={() => changeStock(1)} loading={busy === 'stock'} disabled={busy !== null} />
-                </View>
-              </View>
-            </>
-          )}
-        </Card>
+              </>
+            )}
+          </Card>
+        )}
 
         <Card style={{ gap: 10 }}>
           <Text style={styles.section}>Prix ({currencyLabel(currency)})</Text>
+          {product.hasVariants && (
+            <Text style={styles.muted}>
+              Prix de base : utilisé par une variante qui n’a pas son propre prix. Le prix d’une variante précise se
+              modifie sur le site.
+            </Text>
+          )}
           {canUpdate ? (
             <>
               <Text style={styles.label}>Prix normal</Text>

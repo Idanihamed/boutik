@@ -10,6 +10,8 @@ import type {
   OrderStatus,
   Paginated,
   Product,
+  Promotion,
+  TeamMember,
 } from './types';
 
 // Adresse de l'API : par défaut celle de la version en ligne. Pour tester contre un serveur local,
@@ -179,8 +181,24 @@ export const setProductImages = (id: string, images: { url: string; isMain: bool
   request<Product>(`/admin/products/${id}`, send('PATCH', { images }));
 export const adjustProductStock = (id: string, delta: number) =>
   request<Product>(`/admin/products/${id}/stock`, send('PATCH', { delta }));
+export const adjustVariantStock = (productId: string, variantId: string, delta: number) =>
+  request<Product>(`/admin/products/${productId}/variants/${variantId}/stock`, send('PATCH', { delta }));
 export const setProductPublication = (id: string, action: 'publish' | 'unpublish') =>
   request<Product>(`/admin/products/${id}/${action}`, send('PATCH'));
+
+// ---------- Promotions ----------
+
+export function listPromotions(params: { page?: number } = {}) {
+  return request<Paginated<Promotion>>(`/admin/promotions?page=${params.page ?? 1}&limit=50`);
+}
+export const setPromotionStatus = (id: string, action: 'activate' | 'disable' | 'draft') =>
+  request<Promotion>(`/admin/promotions/${id}/${action}`, send('PATCH'));
+
+// ---------- Équipe ----------
+
+export const listTeam = () => request<TeamMember[]>('/admin/users');
+export const setTeamMemberActive = (id: string, isActive: boolean) =>
+  request<TeamMember>(`/admin/users/${id}`, send('PATCH', { isActive }));
 
 /** Envoie une photo (prise ou choisie sur le téléphone) et renvoie son adresse. */
 export async function uploadImage(file: { uri: string; name: string; type: string }): Promise<string> {

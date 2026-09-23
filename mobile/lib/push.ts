@@ -6,9 +6,11 @@ import { request } from './api';
 
 const TOKEN_KEY = 'boutik_push_token';
 
-// Les alertes sur téléphone ne fonctionnent pas dans Expo Go (limite de l'outil de test) : elles
-// n'existent que dans l'application installée. On n'y charge donc pas le module du tout.
-const inExpoGo = () => Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+// Les alertes sur téléphone ne fonctionnent ni dans Expo Go (limite de l'outil de test — elles
+// n'existent que dans l'application installée), ni sur web (`expo start --web`, utilisé pour un
+// aperçu rapide dans un navigateur : `expo-notifications` y lève une exception au lieu de
+// simplement ne rien faire). On n'y charge donc pas le module du tout dans les deux cas.
+const noNativeNotifications = () => Constants.executionEnvironment === ExecutionEnvironment.StoreClient || Platform.OS === 'web';
 
 async function notifications() {
   return import('expo-notifications');
@@ -16,7 +18,7 @@ async function notifications() {
 
 /** À appeler une fois au démarrage : les alertes reçues application ouverte s'affichent aussi en bandeau. */
 export async function setupNotificationDisplay(): Promise<void> {
-  if (inExpoGo()) return;
+  if (noNativeNotifications()) return;
   const Notifications = await notifications();
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -31,7 +33,7 @@ export async function setupNotificationDisplay(): Promise<void> {
 /** Demande l'autorisation, récupère l'identifiant de ce téléphone et le confie au serveur. */
 export async function registerForPush(): Promise<void> {
   try {
-    if (inExpoGo() || !Device.isDevice) return;
+    if (noNativeNotifications() || !Device.isDevice) return;
     const Notifications = await notifications();
 
     if (Platform.OS === 'android') {
@@ -70,7 +72,7 @@ export async function unregisterFromPush(): Promise<void> {
 
 /** Ouvre le bon écran quand on touche une alerte. Renvoie une fonction pour arrêter l'écoute. */
 export async function listenToNotificationTaps(onLink: (link: string | null) => void): Promise<() => void> {
-  if (inExpoGo()) return () => undefined;
+  if (noNativeNotifications()) return () => undefined;
   const Notifications = await notifications();
 
   const handle = (response: import('expo-notifications').NotificationResponse | null) => {
