@@ -239,6 +239,7 @@ model User {
   businessId    String?
   business      Business?        @relation(fields: [businessId], references: [id], onDelete: Cascade)
   refreshTokens RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
   pushTokens    PushToken[]
   reports       BusinessReport[]
   orders        Order[]
@@ -276,6 +277,22 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+// Jeton "mot de passe oublié" par email (voir auth.service.ts). Un jeton en clair n'est jamais
+// stocké (même principe que RefreshToken) : seul son empreinte SHA-256 l'est, pour qu'une fuite
+// de la base ne permette pas de réinitialiser un mot de passe à la place de son propriétaire.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 // ---------- Catalogue ----------

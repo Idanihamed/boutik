@@ -8,8 +8,10 @@ import { AuthService } from './auth.service';
 import { isMobileClient } from './client-type';
 import { clearAuthCookies, REFRESH_TOKEN_COOKIE, setAuthCookies } from './cookies';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthenticatedUser } from './types/authenticated-user.type';
 
 // La limitation de débit par IP est posée route par route (@UseGuards(ThrottlerGuard) +
@@ -88,6 +90,28 @@ export class AuthController {
       await this.authService.logout(refreshToken);
     }
     clearAuthCookies(res, this.config);
+    return { ok: true };
+  }
+
+  // Même plafond que register() : chaque envoi coûte un appel à l'API Resend, et une demande
+  // en boucle sur un même email ne doit pas pouvoir spammer sa boîte de réception.
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.authService.requestPasswordReset(dto.email);
+    return { ok: true };
+  }
+
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.authService.resetPassword(dto.token, dto.newPassword);
     return { ok: true };
   }
 

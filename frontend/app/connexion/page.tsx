@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { ApiError, login, safeReturnPath } from '../../lib/api';
 import { homeFor, useSession } from '../../lib/session';
-import { Alert, Button, Card, Field, Input } from '../../components/ui';
+import { Alert, Button, Card, Field, Input, PasswordInput } from '../../components/ui';
 
 function LoginForm() {
   const router = useRouter();
@@ -42,15 +42,19 @@ function LoginForm() {
           <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Mot de passe" htmlFor="password">
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </Field>
+        <p className="text-right text-sm">
+          <Link href="/mot-de-passe-oublie" className="font-medium text-brand-700 hover:underline">
+            Mot de passe oublié ?
+          </Link>
+        </p>
         {error && <Alert>{error}</Alert>}
         <Button type="submit" className="w-full" loading={busy}>
           Se connecter

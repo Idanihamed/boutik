@@ -36,6 +36,10 @@ services:
         value: "2"
       - key: CORS_ORIGIN
         sync: false
+      # Même valeur que CORS_ORIGIN (l'URL Vercel) : sert à construire le lien cliquable envoyé
+      # par email lors d'une demande de "mot de passe oublié".
+      - key: FRONTEND_ORIGIN
+        sync: false
       - key: SEED_PLATFORM_ADMIN_NAME
         value: Administrateur Boutik
       - key: SEED_PLATFORM_ADMIN_EMAIL

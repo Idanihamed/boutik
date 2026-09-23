@@ -5,6 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { MailService } from '../mail/mail.service';
 
 jest.mock('bcrypt');
 
@@ -52,8 +53,11 @@ describe('AuthService', () => {
       update: jest.Mock;
       updateMany: jest.Mock;
     };
+    passwordResetToken: { create: jest.Mock; findFirst: jest.Mock; update: jest.Mock };
+    $transaction: jest.Mock;
   };
   let activityLogService: { record: jest.Mock };
+  let mailService: { send: jest.Mock };
   let jwtService: JwtService;
 
   beforeEach(() => {
@@ -65,14 +69,18 @@ describe('AuthService', () => {
         update: jest.fn(),
         updateMany: jest.fn(),
       },
+      passwordResetToken: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
+      $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
     };
     activityLogService = { record: jest.fn().mockResolvedValue(undefined) };
+    mailService = { send: jest.fn().mockResolvedValue(undefined) };
     jwtService = new JwtService({});
     service = new AuthService(
       prisma as unknown as PrismaService,
       jwtService,
       buildConfig(),
       activityLogService as unknown as ActivityLogService,
+      mailService as unknown as MailService,
     );
     jest.clearAllMocks();
     activityLogService.record.mockResolvedValue(undefined);

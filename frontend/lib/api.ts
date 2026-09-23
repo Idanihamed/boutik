@@ -115,6 +115,14 @@ export async function logout(): Promise<void> {
   await request('/auth/logout', { method: 'POST' }).catch(() => undefined);
 }
 
+export async function forgotPassword(email: string): Promise<void> {
+  await request('/auth/forgot-password', json({ email }));
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await request('/auth/reset-password', json({ token, newPassword }));
+}
+
 /** Compte connecté, ou null si personne n'est connecté. */
 export async function fetchMe(): Promise<AuthUser | null> {
   try {

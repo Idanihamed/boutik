@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { ApiError, login, registerCustomer, safeReturnPath } from '../../lib/api';
 import { useSession } from '../../lib/session';
-import { Alert, Button, Card, Field, Input } from '../../components/ui';
+import { Alert, Button, Card, Field, Input, PasswordInput } from '../../components/ui';
 
 function CustomerRegisterForm() {
   const router = useRouter();
@@ -49,9 +49,8 @@ function CustomerRegisterForm() {
           <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Mot de passe" htmlFor="password" hint="10 caractères minimum.">
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
             required
             minLength={10}

@@ -5,6 +5,8 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { MailService } from '../mail/mail.service';
+import { escapeHtml } from '../common/utils/escape-html.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { JwtAccessPayload, JwtRefreshPayload } from './types/authenticated-user.type';
@@ -16,6 +18,11 @@ export interface TokenPair {
   refreshToken: string;
 }
 
+// Durée de validité d'un lien "mot de passe oublié" : assez court pour limiter la fenêtre
+// d'exploitation si la boîte email de quelqu'un est compromise, assez long pour qu'un lien reçu
+// par email n'expire pas avant que la personne ne l'ouvre.
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -23,6 +30,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly activityLogService: ActivityLogService,
+    private readonly mailService: MailService,
   ) {}
 
   private hashToken(token: string): string {
@@ -314,6 +322,52 @@ export class AuthService {
     // Même raison que UsersService.update() : un mot de passe qu'on vient de changer doit
     // invalider tout refresh token émis avec l'ancien, pas seulement l'access token en cours.
     await this.prisma.refreshToken.updateMany({ where: { userId, revoked: false }, data: { revoked: true } });
+  }
+
+  /**
+   * Déclenche l'envoi d'un lien de réinitialisation par email. Répond TOUJOURS de la même façon
+   * (aucune exception, aucune indication si l'email existe) : révéler qu'un email n'a pas de
+   * compte permettrait d'énumérer les adresses inscrites (même principe que login()).
+   */
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.isActive) return;
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    await this.prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: this.hashToken(rawToken),
+        expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+      },
+    });
+
+    const frontendOrigin = this.config.get<string>('FRONTEND_ORIGIN', 'http://localhost:3000');
+    const link = `${frontendOrigin}/reinitialiser-mot-de-passe?token=${rawToken}`;
+    await this.mailService.send({
+      to: user.email,
+      subject: 'Réinitialisation de votre mot de passe Boutik',
+      html: `<p>Bonjour ${escapeHtml(user.name)},</p><p>Cliquez sur le lien ci-dessous pour choisir un nouveau mot de passe. Ce lien est valable 1 heure.</p><p><a href="${link}">${link}</a></p><p>Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>`,
+    });
+  }
+
+  /** Consomme un jeton de réinitialisation valide et non déjà utilisé pour changer le mot de passe. */
+  async resetPassword(rawToken: string, newPassword: string): Promise<void> {
+    const tokenHash = this.hashToken(rawToken);
+    const record = await this.prisma.passwordResetToken.findFirst({ where: { tokenHash } });
+
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      throw new BadRequestException('Ce lien de réinitialisation est invalide ou a expiré.');
+    }
+
+    const passwordHash = await this.hashPassword(newPassword);
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
+      this.prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+      // Même raison que changeOwnPassword() : un mot de passe qu'on vient de changer doit
+      // invalider toute session déjà ouverte avec l'ancien.
+      this.prisma.refreshToken.updateMany({ where: { userId: record.userId, revoked: false }, data: { revoked: true } }),
+    ]);
   }
 
   /** Utilisé par le module Utilisateurs pour créer un nouvel administrateur. */

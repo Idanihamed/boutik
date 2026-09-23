@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { ApiError, registerBusiness } from '../../lib/api';
 import { COUNTRIES, slugify } from '../../lib/labels';
-import { Alert, Button, Card, Field, Input, Select, Textarea } from '../../components/ui';
+import { Alert, Button, Card, Field, Input, PasswordInput, Select, Textarea } from '../../components/ui';
 
 export default function RegisterPage() {
   const [ownerName, setOwnerName] = useState('');
@@ -140,9 +140,8 @@ export default function RegisterPage() {
               <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
             </Field>
             <Field label="Mot de passe" htmlFor="password" hint="10 caractères minimum.">
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="new-password"
                 required
                 minLength={10}

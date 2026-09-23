@@ -9,12 +9,14 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { ActivityLogModule } from '../activity-log/activity-log.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     ConfigModule,
     JwtModule.register({}),
     ActivityLogModule,
+    MailModule,
     // Enregistré ici (et pas dans AppModule) car AuthController est le seul consommateur du
     // ThrottlerGuard (voir auth.controller.ts) : pas de garde global, pour ne pas risquer de
     // limiter le trafic normal du catalogue public. Limite par défaut 10 req/min/IP pour
