@@ -4,22 +4,25 @@ import { useState } from 'react';
 import { ApiError, createArticle, updateArticle } from '../lib/api';
 import type { Article } from '../lib/types';
 import { ImageUploader } from './ImageUploader';
+import { RichTextEditor } from './RichTextEditor';
 import { Alert, Button, Card, Field, Input, Textarea } from './ui';
-
-const ALLOWED_TAGS_HINT =
-  'Seules ces balises sont conservées : <p>, <br>, <strong>/<b>, <em>/<i>, <u>, <ul>/<ol>/<li>, <h2>/<h3>, <blockquote>, <a href="…">. Tout le reste (scripts, styles, autres balises) est retiré automatiquement à l’enregistrement.';
 
 /** Date au format YYYY-MM-DD attendu par un <input type="date">, à partir d'un ISO complet. */
 function toDateInputValue(iso: string | null): string {
   return iso ? iso.slice(0, 10) : '';
 }
 
+/** Vide, ou seulement des balises sans texte (ex. « <p></p> » que rend un éditeur vide). */
+function isContentEmpty(html: string): boolean {
+  return html.replace(/<[^>]+>/g, '').trim().length === 0;
+}
+
 /**
  * Formulaire d'actualité, partagé par la création et la modification — même principe que
  * PageForm : la publication n'est pas un champ de ce formulaire, elle se fait par une action
  * dédiée sur la fiche de l'actualité (voir app/espace/actualites/[id]), jamais accordée à qui
- * n'a que `articles:update`. Contenu en HTML "simple", assaini côté serveur à l'enregistrement
- * (voir sanitize-html.util.ts) : pas encore de véritable éditeur visuel.
+ * n'a que `articles:update`. Contenu saisi via RichTextEditor (éditeur visuel), configuré pour ne
+ * produire que les balises que sanitize-html.util.ts autorise côté serveur.
  */
 export function ArticleForm({ article, onSaved }: { article?: Article; onSaved: () => void }) {
   const [title, setTitle] = useState(article?.title ?? '');
@@ -36,6 +39,10 @@ export function ArticleForm({ article, onSaved }: { article?: Article; onSaved: 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (isContentEmpty(content)) {
+      setError('Le contenu ne peut pas être vide.');
+      return;
+    }
     setBusy(true);
     const input = {
       title: title.trim(),
@@ -79,15 +86,8 @@ export function ArticleForm({ article, onSaved }: { article?: Article; onSaved: 
         >
           <Input id="article-date" type="date" value={publishedAt} onChange={(e) => setPublishedAt(e.target.value)} />
         </Field>
-        <Field label="Contenu" htmlFor="article-content" hint={ALLOWED_TAGS_HINT}>
-          <Textarea
-            id="article-content"
-            required
-            rows={14}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="font-mono text-sm"
-          />
+        <Field label="Contenu" htmlFor="article-content">
+          <RichTextEditor value={content} onChange={setContent} />
         </Field>
         <ImageUploader label="Image d’illustration (facultative)" value={image} onChange={setImage} />
       </Card>

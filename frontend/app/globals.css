@@ -14,3 +14,48 @@ body {
     letter-spacing: -0.02em;
   }
 }
+
+/*
+ * Contenu de RichTextEditor.tsx (TipTap) : Tailwind neutralise par défaut la mise en forme des
+ * balises produites (listes sans puce, titres sans taille…), donc invisible à la frappe sans ce
+ * bloc. Ne couvre QUE les balises que sanitize-html.util.ts autorise côté serveur (voir son
+ * commentaire ALLOWED_TAGS) — aucune autre balise n'a de raison d'apparaître ici.
+ */
+.prose-content {
+  line-height: 1.6;
+}
+.prose-content p {
+  margin: 0.75em 0;
+}
+.prose-content h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 1em 0 0.5em;
+}
+.prose-content h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 1em 0 0.5em;
+}
+.prose-content ul,
+.prose-content ol {
+  padding-left: 1.5rem;
+  margin: 0.75em 0;
+}
+.prose-content ul {
+  list-style: disc;
+}
+.prose-content ol {
+  list-style: decimal;
+}
+.prose-content blockquote {
+  border-left: 4px solid theme('colors.slate.200');
+  padding-left: 1rem;
+  font-style: italic;
+  color: theme('colors.slate.600');
+  margin: 0.75em 0;
+}
+.prose-content a {
+  color: theme('colors.brand.700');
+  text-decoration: underline;
+}

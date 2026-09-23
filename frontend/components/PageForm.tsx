@@ -4,19 +4,22 @@ import { useState } from 'react';
 import { ApiError, createPage, updatePage } from '../lib/api';
 import type { ContentPage } from '../lib/types';
 import { ImageUploader } from './ImageUploader';
+import { RichTextEditor } from './RichTextEditor';
 import { Alert, Button, Card, Field, Input, Textarea } from './ui';
 
-const ALLOWED_TAGS_HINT =
-  'Seules ces balises sont conservées : <p>, <br>, <strong>/<b>, <em>/<i>, <u>, <ul>/<ol>/<li>, <h2>/<h3>, <blockquote>, <a href="…">. Tout le reste (scripts, styles, autres balises) est retiré automatiquement à l’enregistrement.';
+/** Vide, ou seulement des balises sans texte (ex. « <p></p> » que rend un éditeur vide). */
+function isContentEmpty(html: string): boolean {
+  return html.replace(/<[^>]+>/g, '').trim().length === 0;
+}
 
 /**
  * Formulaire de page de contenu (À propos, Livraison, Conditions générales de vente propres à
  * l’entreprise…), partagé par la création et la modification. La publication n'est PAS un champ
  * de ce formulaire — même choix que ProductForm : elle se fait par une action dédiée sur la fiche
  * de la page (voir app/espace/pages/[id]), pour ne jamais l'accorder à qui n'a que `pages:update`.
- * Le contenu est saisi en HTML "simple" : pas encore de véritable éditeur visuel (voir
- * sanitize-html.util.ts côté serveur, qui nettoie de toute façon ce champ à l'enregistrement — un
- * champ mal formé n'est jamais une faille, seulement une mise en forme perdue).
+ * Le contenu est saisi via RichTextEditor (éditeur visuel), configuré pour ne produire que les
+ * balises que sanitize-html.util.ts autorise côté serveur — qui nettoie de toute façon ce champ à
+ * l'enregistrement, cet éditeur n'est qu'un confort de saisie, jamais la seule protection.
  */
 export function PageForm({ page, onSaved }: { page?: ContentPage; onSaved: () => void }) {
   const [title, setTitle] = useState(page?.title ?? '');
@@ -30,6 +33,10 @@ export function PageForm({ page, onSaved }: { page?: ContentPage; onSaved: () =>
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (isContentEmpty(content)) {
+      setError('Le contenu ne peut pas être vide.');
+      return;
+    }
     setBusy(true);
     const input = {
       title: title.trim(),
@@ -55,15 +62,8 @@ export function PageForm({ page, onSaved }: { page?: ContentPage; onSaved: () =>
         <Field label="Titre" htmlFor="page-title" hint="Devient l’adresse de la page (ex. « Livraison » → /livraison) et son titre affiché.">
           <Input id="page-title" required minLength={2} maxLength={150} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
         </Field>
-        <Field label="Contenu" htmlFor="page-content" hint={ALLOWED_TAGS_HINT}>
-          <Textarea
-            id="page-content"
-            required
-            rows={14}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="font-mono text-sm"
-          />
+        <Field label="Contenu" htmlFor="page-content">
+          <RichTextEditor value={content} onChange={setContent} />
         </Field>
         <ImageUploader label="Image d’illustration (facultative)" value={image} onChange={setImage} />
       </Card>
