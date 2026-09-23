@@ -1,20 +1,25 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatPrice } from '../../lib/labels';
 import { useStore } from '../../lib/store-context';
 import type { Product, ProductVariant } from '../../lib/types';
 import { Button } from '../ui';
 
-export function AddToCart({ product }: { product: Product }) {
+/**
+ * `onVariantChange` (facultatif) : prévient le parent de la variante choisie, pour que la photo
+ * de couverture (ProductGallery) puisse afficher SA photo si elle en a une — voir la page produit,
+ * qui lit cette valeur et la transmet à ProductGallery.
+ */
+export function AddToCart({ product, onVariantChange }: { product: Product; onVariantChange?: (variant: ProductVariant | null) => void }) {
   const { store, add } = useStore();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const image = product.images.find((i) => i.isMain) ?? product.images[0];
 
   if (product.hasVariants) {
-    return <VariantAddToCart product={product} />;
+    return <VariantAddToCart product={product} onVariantChange={onVariantChange} />;
   }
 
   const soldOut = product.stock <= 0;
@@ -92,7 +97,7 @@ export function AddToCart({ product }: { product: Product }) {
  * avant de pouvoir ajouter au panier. Les combinaisons sans variante active/en stock sont
  * désactivées plutôt que masquées, pour que le client comprenne pourquoi elles sont indisponibles.
  */
-function VariantAddToCart({ product }: { product: Product }) {
+function VariantAddToCart({ product, onVariantChange }: { product: Product; onVariantChange?: (variant: ProductVariant | null) => void }) {
   const { store, add } = useStore();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -112,6 +117,13 @@ function VariantAddToCart({ product }: { product: Product }) {
       ) ?? null,
     [activeVariants, option1, option2],
   );
+
+  useEffect(() => {
+    onVariantChange?.(selected);
+    // Ne dépend volontairement que de `selected` : `onVariantChange` est recréé à chaque rendu
+    // du parent (fonction inline), l'y ajouter provoquerait une boucle de mises à jour inutile.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
 
   const needsOption1 = option1Values.length > 0;
   const needsOption2 = option2Values.length > 0;

@@ -2,10 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getProduct, getStorefront } from '../../../../lib/server-api';
-import { formatPrice, STOCK_LABELS, STOCK_STYLES } from '../../../../lib/labels';
-import { AddToCart } from '../../../../components/storefront/AddToCart';
+import { formatPrice } from '../../../../lib/labels';
 import { ProductCard } from '../../../../components/storefront/ProductCard';
-import { ProductGallery } from '../../../../components/storefront/ProductGallery';
+import { ProductDetailMain } from '../../../../components/storefront/ProductDetailMain';
 import { whatsappUrl } from '../../../../components/storefront/StoreFooter';
 
 type Props = { params: { slug: string; productSlug: string } };
@@ -50,47 +49,7 @@ export default async function ProductPage({ params }: Props) {
         )}
       </nav>
 
-      <div className="grid gap-8 md:grid-cols-2">
-        <ProductGallery images={product.images} name={product.name} />
-
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{product.name}</h1>
-            {product.brand && <p className="text-sm text-slate-500">{product.brand.name}</p>}
-            <p className="flex flex-wrap items-baseline gap-x-3">
-              <span className="text-2xl font-bold text-slate-900">{formatPrice(product.effectivePrice, store.currency)}</span>
-              {product.onSale && (
-                <>
-                  <span className="text-slate-500 line-through">{formatPrice(product.price, store.currency)}</span>
-                  {product.discountPercentage ? (
-                    <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">-{product.discountPercentage} %</span>
-                  ) : null}
-                </>
-              )}
-            </p>
-            <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${STOCK_STYLES[product.stockStatus]}`}>
-              {STOCK_LABELS[product.stockStatus]}
-            </span>
-          </div>
-
-          {product.shortDescription && <p className="text-slate-700">{product.shortDescription}</p>}
-
-          <AddToCart product={product} />
-
-          {whatsapp && (
-            <a
-              href={whatsapp}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex min-h-[44px] items-center justify-center rounded-lg border border-emerald-600 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
-            >
-              Commander sur WhatsApp
-            </a>
-          )}
-
-          {product.warranty && <p className="text-sm text-slate-600">Garantie : {product.warranty}</p>}
-        </div>
-      </div>
+      <ProductDetailMain product={product} store={store} whatsapp={whatsapp} />
 
       {product.description && (
         <section aria-labelledby="description" className="space-y-2">

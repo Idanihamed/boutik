@@ -7,6 +7,7 @@ import { currencyLabel } from '../lib/labels';
 import { useCan, useSession } from '../lib/session';
 import type { Brand, Category, Product, ProductInput } from '../lib/types';
 import { Checkbox } from './Checkbox';
+import { ImageUploader } from './ImageUploader';
 import { Alert, Button, Card, Field, Input, Select, Textarea } from './ui';
 
 interface ImageItem {
@@ -27,6 +28,7 @@ interface VariantRow {
   price: string;
   promoPrice: string;
   stock: string;
+  image: string | null;
   isActive: boolean;
 }
 
@@ -102,6 +104,7 @@ export function ProductForm({ product, onSaved }: { product?: Product; onSaved: 
       price: v.priceOverride != null ? String(v.priceOverride) : '',
       promoPrice: v.promoPriceOverride != null ? String(v.promoPriceOverride) : '',
       stock: String(v.stock),
+      image: v.image ?? null,
       isActive: v.isActive,
     })),
   );
@@ -127,7 +130,9 @@ export function ProductForm({ product, onSaved }: { product?: Product; onSaved: 
       for (const v1 of values1) {
         for (const v2 of values2) {
           const key = `${v1.toLowerCase()}::${v2.toLowerCase()}`;
-          next.push(byKey.get(key) ?? { option1Value: v1, option2Value: v2, sku: '', price: '', promoPrice: '', stock: '0', isActive: true });
+          next.push(
+            byKey.get(key) ?? { option1Value: v1, option2Value: v2, sku: '', price: '', promoPrice: '', stock: '0', image: null, isActive: true },
+          );
         }
       }
       return next;
@@ -248,6 +253,7 @@ export function ProductForm({ product, onSaved }: { product?: Product; onSaved: 
               price: v.price.trim() === '' ? null : toInt(v.price),
               promoPrice: v.promoPrice.trim() === '' ? null : toInt(v.promoPrice),
               stock: toInt(v.stock),
+              image: v.image ?? undefined,
               isActive: v.isActive,
             })),
           }
@@ -459,6 +465,13 @@ export function ProductForm({ product, onSaved }: { product?: Product; onSaved: 
                             onChange={(e) => setVariants((cur) => cur.map((r, idx) => (idx === i ? { ...r, sku: e.target.value } : r)))}
                           />
                         </Field>
+                      </div>
+                      <div className="mt-3">
+                        <ImageUploader
+                          label="Photo de cette variante (facultatif)"
+                          value={v.image}
+                          onChange={(url) => setVariants((cur) => cur.map((r, idx) => (idx === i ? { ...r, image: url } : r)))}
+                        />
                       </div>
                       <div className="mt-2">
                         <Checkbox
